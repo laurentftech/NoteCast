@@ -1,4 +1,4 @@
-{$CADDY_DOMAIN} {
+(notecast) {
     encode gzip
 
     handle /api/* {
@@ -17,21 +17,10 @@
     }
 }
 
+{$CADDY_DOMAIN} {
+    import notecast
+}
+
 http://localhost {
-    encode gzip
-
-    handle /api/* {
-        reverse_proxy notecast-bridge:8080
-    }
-    handle /auth/* {
-        reverse_proxy notecast-bridge:8080
-    }
-    handle /health {
-        reverse_proxy notecast-bridge:8080
-    }
-
-    handle {
-        root * /srv
-        file_server
-    }
+    import notecast
 }
