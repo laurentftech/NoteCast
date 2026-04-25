@@ -2,10 +2,7 @@ name: Build & publish Docker image
 
 on:
   push:
-    branches: [main]
     tags: ["v*"]
-  pull_request:
-    branches: [main]
 
 env:
   REGISTRY: ghcr.io
@@ -47,7 +44,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./bridge
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
