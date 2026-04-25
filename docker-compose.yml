@@ -15,6 +15,7 @@ services:
       - RETENTION_DAYS
       - BRIDGE_PORT=8080
       - BRIDGE_API_KEY
+      - FEED_IMAGE_URL
 
   caddy:
     image: caddy:2-alpine

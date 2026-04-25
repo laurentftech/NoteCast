@@ -4,7 +4,7 @@ import time
 import logging
 import subprocess
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from podgen import Podcast, Episode, Media
 from aiohttp import web
@@ -23,6 +23,7 @@ POLL_INTERVAL = int(os.getenv('POLL_INTERVAL', '300'))
 RETENTION_DAYS = int(os.getenv('RETENTION_DAYS', '14'))
 BRIDGE_PORT = int(os.getenv('BRIDGE_PORT', '8080'))
 BRIDGE_API_KEY = os.getenv('BRIDGE_API_KEY', '')  # optional — set to restrict /auth/upload
+FEED_IMAGE_URL = os.getenv('FEED_IMAGE_URL', '')
 
 # Paths
 PUBLIC_DIR = Path('/public')
@@ -81,11 +82,19 @@ def convert_to_mp3(wav_path, mp3_path):
 
 def rebuild_feed(history):
     """Rebuild the RSS feed from the history."""
+    image_url = FEED_IMAGE_URL
+    if not image_url:
+        for ext in ('jpg', 'jpeg', 'png'):
+            if (PUBLIC_DIR / f'cover.{ext}').exists():
+                image_url = f"{BASE_URL}/cover.{ext}"
+                break
+
     podcast = Podcast(
         name="NoteCast",
         description="Personal podcast server for NotebookLM audio",
         website=BASE_URL,
-        explicit=False
+        explicit=False,
+        image=image_url or None,
     )
 
     # Sort history by created_at descending (newest first)
@@ -105,16 +114,21 @@ def rebuild_feed(history):
         try:
             pub_date = datetime.fromisoformat(data['created_at'].replace('Z', '+00:00'))
         except Exception:
-            pub_date = datetime.now()
+            pub_date = datetime.now(timezone.utc)
+        if pub_date.tzinfo is None:
+            pub_date = pub_date.replace(tzinfo=timezone.utc)
+
+        mp3_path = EPISODES_DIR / mp3_filename
+        file_size = mp3_path.stat().st_size if mp3_path.exists() else 0
 
         episode = Episode(
             title=episode_title,
-            media=Media(media_url),
-            pub_date=pub_date
+            media=Media(media_url, file_size, type='audio/mpeg'),
+            publication_date=pub_date,
         )
         podcast.add_episode(episode)
 
-    podcast.rss_file(FEED_FILE)
+    podcast.rss_file(str(FEED_FILE))
     logger.info(f"Feed rebuilt with {len(sorted_history)} episodes")
 
 def purge_old_episodes(history):
@@ -245,10 +259,12 @@ async def main_async():
                             'mp3_filename': mp3_filename,
                         }
                         logger.info(f"Successfully processed artifact {artifact_id}")
+                        save_history(history)
+                        rebuild_feed(history)
 
             history = purge_old_episodes(history)
-            rebuild_feed(history)
             save_history(history)
+            rebuild_feed(history)
 
         except Exception as e:
             logger.error(f"Error in main loop: {e}")
