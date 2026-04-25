@@ -749,6 +749,10 @@
       </div>
     </div>
 
+    <button class="btn btn-accent" id="pollNowBtn" style="width:100%;justify-content:center;margin-bottom:18px;">
+      Check now
+    </button>
+
     <div class="section-label">RSS Feed</div>
     <div class="rss-row">
       <span class="rss-url" id="rssUrl">—</span>
@@ -974,6 +978,20 @@
   document.getElementById('closeAdmin').addEventListener('click', () => overlay.classList.remove('open'));
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') overlay.classList.remove('open'); });
+
+  document.getElementById('pollNowBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('pollNowBtn');
+    btn.textContent = 'Checking…';
+    btn.disabled = true;
+    try {
+      await fetch('/api/poll', { method: 'POST' });
+      btn.textContent = 'Triggered!';
+      setTimeout(() => { btn.textContent = 'Check now'; btn.disabled = false; }, 2000);
+    } catch {
+      btn.textContent = 'Error';
+      setTimeout(() => { btn.textContent = 'Check now'; btn.disabled = false; }, 2000);
+    }
+  });
 
   async function loadStatus() {
     try {

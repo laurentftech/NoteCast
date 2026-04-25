@@ -19,7 +19,7 @@ except ImportError:
 
 # Configuration from environment variables with defaults
 BASE_URL = os.getenv('BASE_URL')
-POLL_INTERVAL = int(os.getenv('POLL_INTERVAL', '300'))
+POLL_INTERVAL = int(os.getenv('POLL_INTERVAL', '86400'))
 RETENTION_DAYS = int(os.getenv('RETENTION_DAYS', '14'))
 BRIDGE_PORT = int(os.getenv('BRIDGE_PORT', '8080'))
 BRIDGE_API_KEY = os.getenv('BRIDGE_API_KEY', '')  # optional — set to restrict /auth/upload
@@ -300,12 +300,18 @@ async def main_async():
         _last_updated = datetime.now(timezone.utc).isoformat()
         _next_poll_at = time.time() + POLL_INTERVAL
         logger.info(f"Sleeping for {POLL_INTERVAL} seconds")
-        await asyncio.sleep(POLL_INTERVAL)
+        _poll_event.clear()
+        try:
+            await asyncio.wait_for(_poll_event.wait(), timeout=POLL_INTERVAL)
+            logger.info("Poll triggered manually")
+        except asyncio.TimeoutError:
+            pass
 
 AUTH_STORAGE_FILE = Path('/root/.notebooklm/storage_state.json')
 
 _last_updated: str = ''
 _next_poll_at: float = 0.0
+_poll_event = asyncio.Event()
 
 
 async def handle_health(request):
@@ -342,6 +348,15 @@ async def handle_episodes(request):
     return web.json_response(episodes)
 
 
+async def handle_poll(request):
+    if BRIDGE_API_KEY:
+        key = request.headers.get('X-Api-Key', '')
+        if key != BRIDGE_API_KEY:
+            return web.json_response({'ok': False, 'error': 'Unauthorized'}, status=401)
+    _poll_event.set()
+    return web.json_response({'ok': True})
+
+
 async def handle_auth_upload(request):
     if BRIDGE_API_KEY:
         key = request.headers.get('X-Api-Key', '')
@@ -365,6 +380,7 @@ async def run_http_server():
     app.router.add_get('/health', handle_health)
     app.router.add_get('/api/status', handle_status)
     app.router.add_get('/api/episodes', handle_episodes)
+    app.router.add_post('/api/poll', handle_poll)
     app.router.add_post('/auth/upload', handle_auth_upload)
     runner = web.AppRunner(app)
     await runner.setup()
