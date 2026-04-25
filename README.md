@@ -21,7 +21,33 @@ NotebookLM → notebooklm-py → harvester.py → MP3 → RSS feed → Caddy (HT
 - Docker + Docker Compose
 - A domain pointing to your server (for HTTPS)
 
-### 2. Configure environment
+### 2. Get the files
+
+**Option A — pre-built image (recommended)**
+
+Download only the files needed to run:
+
+```bash
+curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/Caddyfile
+curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/.env.example
+mkdir -p auth data public/episodes
+```
+
+Then edit `docker-compose.yml` and replace `build: ./bridge` with:
+
+```yaml
+image: ghcr.io/laurentftech/notecast:latest
+```
+
+**Option B — build from source**
+
+```bash
+git clone https://github.com/laurentftech/NoteCast.git
+cd NoteCast
+```
+
+### 3. Configure environment
 
 ```bash
 cp .env.example .env
@@ -34,7 +60,7 @@ BASE_URL=https://podcast.yourdomain.com   # public URL of this server
 CADDY_DOMAIN=podcast.yourdomain.com       # same host, no protocol
 ```
 
-### 3. Authenticate with NotebookLM
+### 4. Authenticate with NotebookLM
 
 Login requires a real browser window (Google OAuth). Run it on any machine that has a display — your Mac, a laptop, etc.
 
@@ -63,7 +89,7 @@ The bridge picks up the credentials immediately — no restart needed.
 
 > **Tip:** back up `./auth/storage_state.json`. If lost, repeat this step.
 
-### 4. Subscribe
+### 5. Subscribe
 
 Your feed is live at:
 
