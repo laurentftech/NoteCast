@@ -28,6 +28,7 @@ curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/docker-comp
 curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/Caddyfile
 curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/.env.example
 mkdir -p auth data public/episodes
+curl -o public/index.html https://raw.githubusercontent.com/laurentftech/NoteCast/main/public/index.html
 ```
 
 The bridge image (`ghcr.io/laurentftech/notecast:latest`) is pulled automatically.
@@ -133,6 +134,7 @@ Paste this URL into Overcast, Pocket Casts, Apple Podcasts, or any RSS-capable a
 │   ├── requirements.txt
 │   └── Dockerfile
 ├── public/
+│   ├── index.html         # Web UI
 │   ├── feed.xml           # Generated RSS feed
 │   └── episodes/          # Converted MP3 files
 ├── example/
