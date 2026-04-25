@@ -206,6 +206,7 @@ async def main_async():
 
                 for notebook in notebooks:
                     notebook_id = notebook.id
+                    notebook_title = getattr(notebook, 'title', '')
 
                     try:
                         artifacts = await client.artifacts.list(notebook_id)
@@ -257,6 +258,7 @@ async def main_async():
                             'title': title,
                             'created_at': created_at,
                             'mp3_filename': mp3_filename,
+                            'notebook': notebook_title,
                         }
                         logger.info(f"Successfully processed artifact {artifact_id}")
                         save_history(history)
@@ -269,14 +271,50 @@ async def main_async():
         except Exception as e:
             logger.error(f"Error in main loop: {e}")
 
+        global _last_updated, _next_poll_at
+        _last_updated = datetime.now(timezone.utc).isoformat()
+        _next_poll_at = time.time() + POLL_INTERVAL
         logger.info(f"Sleeping for {POLL_INTERVAL} seconds")
         await asyncio.sleep(POLL_INTERVAL)
 
 AUTH_STORAGE_FILE = Path('/root/.notebooklm/storage_state.json')
 
+_last_updated: str = ''
+_next_poll_at: float = 0.0
+
 
 async def handle_health(request):
     return web.json_response({'ok': True})
+
+
+async def handle_status(request):
+    history = load_history()
+    now = time.time()
+    return web.json_response({
+        'episodes': len(history),
+        'last_updated': _last_updated,
+        'next_poll_in': max(0, int(_next_poll_at - now)),
+    })
+
+
+async def handle_episodes(request):
+    history = load_history()
+    episodes = sorted(
+        [
+            {
+                'id': k,
+                'title': v['title'],
+                'notebook': v.get('notebook', ''),
+                'created_at': v['created_at'],
+                'url': f"{BASE_URL}/episodes/{v['mp3_filename']}",
+                'filename': v['mp3_filename'],
+            }
+            for k, v in history.items()
+        ],
+        key=lambda x: x['created_at'],
+        reverse=True,
+    )
+    return web.json_response(episodes)
 
 
 async def handle_auth_upload(request):
@@ -300,6 +338,8 @@ async def handle_auth_upload(request):
 async def run_http_server():
     app = web.Application()
     app.router.add_get('/health', handle_health)
+    app.router.add_get('/api/status', handle_status)
+    app.router.add_get('/api/episodes', handle_episodes)
     app.router.add_post('/auth/upload', handle_auth_upload)
     runner = web.AppRunner(app)
     await runner.setup()
