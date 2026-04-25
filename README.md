@@ -23,10 +23,6 @@ NotebookLM → notebooklm-py → harvester.py → MP3 → RSS feed → Caddy (HT
 
 ### 2. Get the files
 
-**Option A — pre-built image (recommended)**
-
-Download only the files needed to run:
-
 ```bash
 curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/docker-compose.yml
 curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/Caddyfile
@@ -34,18 +30,15 @@ curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/.env.exampl
 mkdir -p auth data public/episodes
 ```
 
-Then edit `docker-compose.yml` and replace `build: ./bridge` with:
+The bridge image (`ghcr.io/laurentftech/notecast:latest`) is pulled automatically.
 
-```yaml
-image: ghcr.io/laurentftech/notecast:latest
-```
-
-**Option B — build from source**
-
-```bash
-git clone https://github.com/laurentftech/NoteCast.git
-cd NoteCast
-```
+> **Build from source:** clone the repo and add a `docker-compose.override.yml`:
+> ```yaml
+> services:
+>   notecast-bridge:
+>     build: ./bridge
+>     image: notecast-bridge
+> ```
 
 ### 3. Configure environment
 

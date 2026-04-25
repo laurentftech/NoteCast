@@ -1,6 +1,6 @@
 services:
   notecast-bridge:
-    build: ./bridge
+    image: ghcr.io/laurentftech/notecast:latest
     restart: unless-stopped
     container_name: notecast-bridge
     ports:
