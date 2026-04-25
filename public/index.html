@@ -2,328 +2,722 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f6f5fb" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0b0a10" media="(prefers-color-scheme: dark)">
   <title>NoteCast</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%237c4dff'/><stop offset='1' stop-color='%23c084fc'/></linearGradient></defs><rect width='64' height='64' rx='14' fill='url(%23g)'/><g fill='white' opacity='.95'><rect x='13' y='26' width='5' height='12' rx='2.5'/><rect x='22' y='20' width='5' height='24' rx='2.5'/><rect x='31' y='14' width='5' height='36' rx='2.5'/><rect x='40' y='22' width='5' height='20' rx='2.5'/><rect x='49' y='28' width='5' height='8' rx='2.5'/></g></svg>">
   <style>
+    /* ───────────────────────────────────────────────
+       Design tokens
+       ─────────────────────────────────────────────── */
     :root {
-      --bg: #f5f5f7;
+      --bg: #f6f5fb;
+      --bg-soft: #efedf6;
       --surface: #ffffff;
-      --surface2: #f0f0f2;
-      --border: #d1d1d6;
-      --text: #1d1d1f;
-      --text2: #6e6e73;
+      --surface-2: #f3f1f8;
+      --surface-3: #e9e6f1;
+      --border: #e2dff0;
+      --border-strong: #cdc7e0;
+      --text: #14121d;
+      --text-2: #6b6680;
+      --text-3: #9994ac;
       --accent: #6c35de;
-      --accent-dim: #6c35de18;
-      --playing-bg: #6c35de12;
-      --shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+      --accent-2: #8b5cf6;
+      --accent-3: #c084fc;
+      --accent-soft: rgba(108, 53, 222, .10);
+      --accent-softer: rgba(108, 53, 222, .06);
+      --playing-bg: linear-gradient(180deg, rgba(108,53,222,.07), rgba(108,53,222,.02));
+      --shadow-sm: 0 1px 2px rgba(20, 18, 30, .06);
+      --shadow-md: 0 6px 24px -8px rgba(20, 18, 30, .14), 0 2px 8px rgba(20, 18, 30, .05);
+      --shadow-lg: 0 24px 60px -20px rgba(20, 18, 30, .25), 0 8px 24px -8px rgba(20, 18, 30, .12);
+      --shadow-glow: 0 8px 32px rgba(108, 53, 222, .28);
+      --radius-sm: 8px;
       --radius: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 20px;
+      --header-height: 88px;
+      --player-height: 92px;
+      --gradient-cover: linear-gradient(135deg, #7c4dff 0%, #a855f7 50%, #c084fc 100%);
+      --gradient-page: radial-gradient(1200px 800px at 80% -10%, rgba(124, 77, 255, .07), transparent 60%),
+                        radial-gradient(900px 600px at -10% 110%, rgba(192, 132, 252, .06), transparent 60%);
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #0d0d0f;
-        --surface: #1a1a1f;
-        --surface2: #222228;
-        --border: #2e2e36;
-        --text: #f0f0f2;
-        --text2: #8e8e9a;
+        --bg: #0b0a10;
+        --bg-soft: #100e17;
+        --surface: #16141d;
+        --surface-2: #1d1a26;
+        --surface-3: #25222f;
+        --border: #2a2638;
+        --border-strong: #3a3550;
+        --text: #f0eef7;
+        --text-2: #9590ad;
+        --text-3: #6b6680;
         --accent: #a78bfa;
-        --accent-dim: #a78bfa18;
-        --playing-bg: #a78bfa10;
-        --shadow: 0 1px 3px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.2);
+        --accent-2: #c084fc;
+        --accent-3: #d8b4fe;
+        --accent-soft: rgba(167, 139, 250, .14);
+        --accent-softer: rgba(167, 139, 250, .07);
+        --playing-bg: linear-gradient(180deg, rgba(167,139,250,.10), rgba(167,139,250,.02));
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+        --shadow-md: 0 6px 24px -8px rgba(0, 0, 0, .55), 0 2px 8px rgba(0, 0, 0, .25);
+        --shadow-lg: 0 24px 60px -20px rgba(0, 0, 0, .7), 0 8px 24px -8px rgba(0, 0, 0, .4);
+        --shadow-glow: 0 8px 32px rgba(167, 139, 250, .35);
+        --gradient-page: radial-gradient(1200px 800px at 80% -10%, rgba(124, 77, 255, .14), transparent 60%),
+                          radial-gradient(900px 600px at -10% 110%, rgba(192, 132, 252, .08), transparent 60%);
       }
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { -webkit-text-size-adjust: 100%; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
       background: var(--bg);
+      background-image: var(--gradient-page);
+      background-attachment: fixed;
       color: var(--text);
       min-height: 100dvh;
-      padding-bottom: 100px;
+      padding-bottom: calc(var(--player-height) + env(safe-area-inset-bottom, 0px) + 24px);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      letter-spacing: -0.01em;
     }
 
-    /* ── Header ── */
+    button { font-family: inherit; }
+
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: 6px;
+    }
+
+    /* ───────────────────────────────────────────────
+       Header
+       ─────────────────────────────────────────────── */
     .header {
-      background: var(--surface);
+      background: color-mix(in srgb, var(--surface) 78%, transparent);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
       border-bottom: 1px solid var(--border);
-      padding: 24px 20px 20px;
+      padding: 18px 20px;
+      padding-top: calc(18px + env(safe-area-inset-top, 0px));
       display: flex;
       align-items: center;
-      gap: 20px;
+      gap: 16px;
       position: sticky;
       top: 0;
       z-index: 10;
     }
     .cover {
-      width: 72px; height: 72px;
-      border-radius: 12px;
-      object-fit: cover;
-      background: var(--surface2);
+      width: 64px; height: 64px;
+      border-radius: 14px;
+      background: var(--gradient-cover);
       flex-shrink: 0;
       display: flex; align-items: center; justify-content: center;
-      font-size: 28px;
       overflow: hidden;
+      box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255,255,255,.18);
+      position: relative;
     }
-    .cover img { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; }
+    .cover::after {
+      content: '';
+      position: absolute; inset: 0;
+      border-radius: inherit;
+      background: linear-gradient(180deg, rgba(255,255,255,.14), transparent 40%);
+      pointer-events: none;
+    }
+    .cover img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      border-radius: inherit;
+      display: block;
+    }
+    .cover svg.cover-default {
+      width: 60%; height: 60%;
+      display: block;
+    }
+
     .header-info { flex: 1; min-width: 0; }
-    .header-info h1 { font-size: 20px; font-weight: 700; letter-spacing: -.3px; }
-    .header-info .subtitle { font-size: 13px; color: var(--text2); margin-top: 2px; }
+    .header-info h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+    }
+    .header-info .subtitle {
+      font-size: 13px;
+      color: var(--text-2);
+      margin-top: 3px;
+      font-weight: 450;
+    }
     .header-actions { display: flex; gap: 8px; align-items: center; }
 
     .btn {
       display: inline-flex; align-items: center; gap: 6px;
-      padding: 7px 13px;
-      border-radius: 8px;
+      padding: 8px 14px;
+      border-radius: 10px;
       border: 1px solid var(--border);
-      background: var(--surface2);
+      background: var(--surface);
       color: var(--text);
-      font-size: 13px; font-weight: 500;
-      cursor: pointer; text-decoration: none;
-      transition: background .15s, border-color .15s;
+      font-size: 13px;
+      font-weight: 550;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all .15s ease;
       white-space: nowrap;
+      box-shadow: var(--shadow-sm);
     }
-    .btn:hover { background: var(--border); }
+    .btn:hover {
+      background: var(--surface-2);
+      border-color: var(--border-strong);
+      transform: translateY(-1px);
+    }
+    .btn:active { transform: translateY(0); }
     .btn-accent {
-      background: var(--accent);
-      border-color: var(--accent);
+      background: linear-gradient(180deg, var(--accent-2), var(--accent));
+      border-color: transparent;
       color: #fff;
+      box-shadow: var(--shadow-glow), inset 0 1px 0 rgba(255,255,255,.2);
     }
-    .btn-accent:hover { opacity: .88; background: var(--accent); }
+    .btn-accent:hover {
+      filter: brightness(1.05);
+      background: linear-gradient(180deg, var(--accent-2), var(--accent));
+    }
     .btn-icon {
-      padding: 7px 10px;
+      padding: 8px;
+      width: 36px; height: 36px;
+      justify-content: center;
+      border-radius: 10px;
     }
+    .btn-icon svg { width: 16px; height: 16px; }
 
-    /* ── Episodes ── */
-    .section { max-width: 760px; margin: 0 auto; padding: 20px 16px 0; }
+    /* ───────────────────────────────────────────────
+       Section / list
+       ─────────────────────────────────────────────── */
+    .section { max-width: 760px; margin: 0 auto; padding: 28px 16px 0; }
     .section-title {
-      font-size: 12px; font-weight: 600; letter-spacing: .06em;
-      text-transform: uppercase; color: var(--text2);
-      margin-bottom: 10px; padding: 0 4px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-3);
+      margin-bottom: 14px;
+      padding: 0 6px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .section-title .count {
+      font-size: 11px;
+      color: var(--text-3);
+      font-weight: 500;
+      letter-spacing: 0;
+      text-transform: none;
     }
 
-    .episodes { display: flex; flex-direction: column; gap: 2px; }
+    .episodes {
+      display: flex; flex-direction: column;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
 
     .episode {
       display: flex; align-items: center; gap: 14px;
       padding: 12px 14px;
-      border-radius: 10px;
       cursor: pointer;
-      transition: background .12s;
-      border: 1px solid transparent;
+      transition: background .12s ease;
+      position: relative;
+      border-bottom: 1px solid var(--border);
     }
-    .episode:hover { background: var(--surface); border-color: var(--border); }
+    .episode:last-child { border-bottom: none; }
+    .episode:hover { background: var(--surface-2); }
     .episode.playing {
-      background: var(--playing-bg);
-      border-color: var(--accent-dim);
+      background-image: var(--playing-bg);
     }
+
     .play-btn {
-      width: 36px; height: 36px; border-radius: 50%;
+      width: 38px; height: 38px;
+      border-radius: 50%;
       border: none; cursor: pointer; flex-shrink: 0;
-      background: var(--surface2);
+      background: var(--surface-2);
+      color: var(--text);
+      display: flex; align-items: center; justify-content: center;
+      transition: background .12s, transform .1s, box-shadow .12s;
+      position: relative;
+    }
+    .episode:hover .play-btn {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: var(--shadow-glow);
+    }
+    .episode.playing .play-btn {
+      background: linear-gradient(180deg, var(--accent-2), var(--accent));
+      color: #fff;
+      box-shadow: var(--shadow-glow);
+    }
+    .play-btn:active { transform: scale(.93); }
+    .play-btn svg { width: 14px; height: 14px; }
+    .play-btn .icon-play { transform: translateX(1px); }
+
+    .ep-info { flex: 1; min-width: 0; }
+    .ep-title {
+      font-size: 14.5px;
+      font-weight: 550;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      line-height: 1.35;
+    }
+    .episode.playing .ep-title { color: var(--accent); font-weight: 600; }
+    .ep-meta {
+      font-size: 12px;
+      color: var(--text-2);
+      margin-top: 3px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .ep-aside {
+      display: flex; align-items: center; gap: 8px;
+      flex-shrink: 0;
+    }
+
+    /* Animated EQ bars when an episode is playing */
+    .eq {
+      display: none;
+      align-items: flex-end;
+      gap: 2px;
+      width: 16px; height: 14px;
+    }
+    .episode.playing .eq { display: inline-flex; }
+    .eq span {
+      flex: 1;
+      background: var(--accent);
+      border-radius: 1px;
+      animation: eq 0.9s ease-in-out infinite;
+      transform-origin: bottom;
+    }
+    .eq span:nth-child(1) { animation-delay: -0.6s; }
+    .eq span:nth-child(2) { animation-delay: -0.3s; }
+    .eq span:nth-child(3) { animation-delay: -0.45s; }
+    @keyframes eq {
+      0%, 100% { transform: scaleY(0.35); }
+      50%      { transform: scaleY(1); }
+    }
+
+    .ep-duration {
+      font-size: 12px;
+      color: var(--text-3);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ───────────────────────────────────────────────
+       Empty / loading
+       ─────────────────────────────────────────────── */
+    .empty {
+      text-align: center;
+      padding: 72px 24px;
+      color: var(--text-2);
+      font-size: 14.5px;
+      line-height: 1.55;
+    }
+    .empty .empty-illu {
+      width: 96px; height: 96px;
+      margin: 0 auto 20px;
+      border-radius: 24px;
+      background: var(--gradient-cover);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255,255,255,.18);
+      position: relative;
+      overflow: hidden;
+    }
+    .empty .empty-illu::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(180deg, rgba(255,255,255,.18), transparent 40%);
+    }
+    .empty .empty-illu svg { width: 56px; height: 56px; position: relative; z-index: 1; }
+    .empty h3 {
+      font-size: 16px;
+      color: var(--text);
+      font-weight: 600;
+      margin-bottom: 6px;
+      letter-spacing: -0.01em;
+    }
+    .empty p { max-width: 340px; margin: 0 auto; }
+
+    /* Loading spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 22px; height: 22px;
+      border: 2.5px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      margin: 0 auto;
+    }
+
+    /* ───────────────────────────────────────────────
+       Player
+       ─────────────────────────────────────────────── */
+    .player {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: color-mix(in srgb, var(--surface) 82%, transparent);
+      backdrop-filter: saturate(180%) blur(24px);
+      -webkit-backdrop-filter: saturate(180%) blur(24px);
+      border-top: 1px solid var(--border);
+      padding: 12px 20px;
+      padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 20;
+      box-shadow: 0 -8px 32px -12px rgba(0,0,0,.12);
+    }
+    .player.visible { display: flex; }
+    .player-top { display: flex; align-items: center; gap: 12px; max-width: 760px; margin: 0 auto; width: 100%; }
+    .player-cover {
+      width: 40px; height: 40px;
+      border-radius: 8px;
+      background: var(--gradient-cover);
+      flex-shrink: 0;
+      box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255,255,255,.18);
+      overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .player-cover img { width: 100%; height: 100%; object-fit: cover; }
+    .player-cover svg { width: 60%; height: 60%; }
+    .player-meta { flex: 1; min-width: 0; }
+    .player-title {
+      font-size: 13.5px;
+      font-weight: 600;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      color: var(--text);
+      line-height: 1.3;
+    }
+    .player-sub {
+      font-size: 11.5px;
+      color: var(--text-2);
+      margin-top: 1px;
+    }
+    .player-controls { display: flex; align-items: center; gap: 2px; }
+    .ctrl-btn {
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      border: none; background: none; cursor: pointer;
       color: var(--text);
       display: flex; align-items: center; justify-content: center;
       transition: background .12s, transform .1s;
     }
-    .episode:hover .play-btn,
-    .episode.playing .play-btn { background: var(--accent); color: #fff; }
-    .play-btn:active { transform: scale(.93); }
-    .play-btn svg { width: 16px; height: 16px; }
-
-    .ep-info { flex: 1; min-width: 0; }
-    .ep-title {
-      font-size: 14px; font-weight: 500;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .episode.playing .ep-title { color: var(--accent); }
-    .ep-meta { font-size: 12px; color: var(--text2); margin-top: 2px; }
-
-    .ep-duration { font-size: 12px; color: var(--text2); flex-shrink: 0; }
-
-    /* ── Empty / Loading ── */
-    .empty {
-      text-align: center; padding: 60px 20px;
-      color: var(--text2); font-size: 15px;
-    }
-    .empty .icon { font-size: 40px; margin-bottom: 12px; }
-
-    /* ── Player ── */
-    .player {
-      position: fixed; bottom: 0; left: 0; right: 0;
-      background: var(--surface);
-      border-top: 1px solid var(--border);
-      padding: 12px 20px 16px;
-      display: none;
-      flex-direction: column; gap: 8px;
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      z-index: 20;
-    }
-    .player.visible { display: flex; }
-    .player-top { display: flex; align-items: center; gap: 12px; }
-    .player-title {
-      flex: 1; min-width: 0;
-      font-size: 13px; font-weight: 500;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      color: var(--text);
-    }
-    .player-controls { display: flex; align-items: center; gap: 4px; }
-    .ctrl-btn {
-      width: 36px; height: 36px; border-radius: 50%;
-      border: none; background: none; cursor: pointer;
-      color: var(--text); display: flex; align-items: center; justify-content: center;
-      transition: background .12s;
-    }
-    .ctrl-btn:hover { background: var(--surface2); }
+    .ctrl-btn:hover { background: var(--surface-2); }
+    .ctrl-btn:active { transform: scale(.94); }
     .ctrl-btn.play-pause {
-      width: 40px; height: 40px;
-      background: var(--accent); color: #fff;
+      width: 44px; height: 44px;
+      background: linear-gradient(180deg, var(--accent-2), var(--accent));
+      color: #fff;
+      box-shadow: var(--shadow-glow), inset 0 1px 0 rgba(255,255,255,.2);
     }
-    .ctrl-btn.play-pause:hover { opacity: .88; }
+    .ctrl-btn.play-pause:hover {
+      filter: brightness(1.05);
+      background: linear-gradient(180deg, var(--accent-2), var(--accent));
+    }
     .ctrl-btn svg { width: 18px; height: 18px; }
     .ctrl-btn.play-pause svg { width: 20px; height: 20px; }
+    .ctrl-btn.play-pause .icon-play { transform: translateX(1px); }
 
-    .player-progress { display: flex; align-items: center; gap: 10px; }
-    .time { font-size: 11px; color: var(--text2); flex-shrink: 0; font-variant-numeric: tabular-nums; }
-    .progress-bar {
-      flex: 1; height: 4px; border-radius: 2px;
-      background: var(--border); cursor: pointer; position: relative;
+    .player-progress {
+      display: flex; align-items: center; gap: 12px;
+      max-width: 760px; margin: 0 auto; width: 100%;
     }
+    .time {
+      font-size: 11px;
+      color: var(--text-2);
+      flex-shrink: 0;
+      font-variant-numeric: tabular-nums;
+      min-width: 34px;
+    }
+    .time:last-child { text-align: right; }
+    .progress-bar {
+      flex: 1;
+      height: 18px; /* hit area */
+      cursor: pointer;
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .progress-bar::before {
+      content: '';
+      position: absolute; left: 0; right: 0;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--surface-3);
+      transition: height .15s ease;
+    }
+    .progress-bar:hover::before { height: 6px; }
     .progress-fill {
-      height: 100%; border-radius: 2px;
-      background: var(--accent); width: 0%;
-      transition: width .25s linear;
+      position: absolute;
+      left: 0;
+      height: 4px;
+      border-radius: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      width: 0%;
+      transition: width .25s linear, height .15s ease;
       pointer-events: none;
     }
+    .progress-bar:hover .progress-fill { height: 6px; }
 
-    /* ── Admin Modal ── */
+    /* ───────────────────────────────────────────────
+       Modal
+       ─────────────────────────────────────────────── */
     .overlay {
       position: fixed; inset: 0;
-      background: rgba(0,0,0,.5);
+      background: rgba(8, 6, 16, .55);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
       z-index: 30; display: none;
       align-items: flex-end; justify-content: center;
       padding: 16px;
+      animation: fadeIn .18s ease;
     }
     .overlay.open { display: flex; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     @media (min-width: 500px) {
       .overlay { align-items: center; }
     }
     .modal {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 16px;
-      width: 100%; max-width: 420px;
-      padding: 20px;
-      box-shadow: var(--shadow);
+      border-radius: var(--radius-xl);
+      width: 100%; max-width: 440px;
+      padding: 22px;
+      box-shadow: var(--shadow-lg);
+      animation: slideUp .25s cubic-bezier(.16,.84,.44,1);
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(16px) scale(.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
     }
     .modal-header {
       display: flex; align-items: center;
       justify-content: space-between;
-      margin-bottom: 18px;
+      margin-bottom: 20px;
     }
-    .modal-header h2 { font-size: 16px; font-weight: 600; }
+    .modal-header h2 {
+      font-size: 17px;
+      font-weight: 650;
+      letter-spacing: -0.01em;
+    }
     .close-btn {
-      width: 28px; height: 28px; border-radius: 50%;
-      border: none; background: var(--surface2);
-      cursor: pointer; color: var(--text2);
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      border: none;
+      background: var(--surface-2);
+      cursor: pointer;
+      color: var(--text-2);
       display: flex; align-items: center; justify-content: center;
+      transition: background .12s, color .12s;
     }
-    .close-btn:hover { background: var(--border); }
+    .close-btn:hover { background: var(--surface-3); color: var(--text); }
 
     .stat-grid {
-      display: grid; grid-template-columns: 1fr 1fr;
-      gap: 10px; margin-bottom: 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 22px;
     }
     .stat {
-      background: var(--surface2);
-      border-radius: 10px; padding: 12px 14px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      transition: border-color .12s;
     }
-    .stat-value { font-size: 22px; font-weight: 700; }
-    .stat-label { font-size: 12px; color: var(--text2); margin-top: 2px; }
+    .stat:hover { border-color: var(--border-strong); }
+    .stat-value {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(180deg, var(--text), var(--text-2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .stat-label {
+      font-size: 11.5px;
+      color: var(--text-2);
+      margin-top: 4px;
+      font-weight: 500;
+    }
 
     .section-label {
-      font-size: 11px; font-weight: 600; letter-spacing: .06em;
-      text-transform: uppercase; color: var(--text2);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-3);
       margin-bottom: 10px;
     }
 
     .upload-area {
-      border: 1px dashed var(--border);
-      border-radius: 10px; padding: 16px;
+      border: 1.5px dashed var(--border-strong);
+      border-radius: var(--radius);
+      padding: 20px 16px;
       text-align: center;
+      transition: border-color .12s, background .12s;
+      background: var(--surface-2);
     }
-    .upload-area p { font-size: 13px; color: var(--text2); margin-bottom: 10px; }
+    .upload-area:hover { border-color: var(--accent); background: var(--accent-softer); }
+    .upload-area p {
+      font-size: 13px;
+      color: var(--text-2);
+      margin-bottom: 12px;
+      line-height: 1.45;
+    }
+    .upload-area code {
+      background: var(--surface-3);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: 'SF Mono', Menlo, Consolas, monospace;
+      color: var(--text);
+    }
     .upload-area input[type=file] { display: none; }
-    .upload-result {
-      margin-top: 8px; font-size: 13px; display: none;
+    .upload-filename {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--text-2);
+      font-weight: 500;
     }
-    .upload-result.ok { color: #22c55e; }
-    .upload-result.err { color: #ef4444; }
+    .upload-result {
+      margin-top: 12px;
+      font-size: 13px;
+      display: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-weight: 500;
+    }
+    .upload-result.ok {
+      color: #16a34a;
+      background: rgba(34, 197, 94, .10);
+    }
+    .upload-result.err {
+      color: #dc2626;
+      background: rgba(239, 68, 68, .10);
+    }
 
     .rss-row {
       display: flex; gap: 8px; align-items: center;
-      background: var(--surface2);
-      border-radius: 8px; padding: 10px 12px;
-      margin-top: 16px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
     }
-    .rss-url { font-size: 12px; color: var(--text2); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rss-url {
+      font-size: 12px;
+      color: var(--text-2);
+      flex: 1; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      font-family: 'SF Mono', Menlo, Consolas, monospace;
+    }
 
-    /* Spinner */
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .spinner {
-      width: 20px; height: 20px;
-      border: 2px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-      margin: 0 auto;
+    /* Subtle entrance for episode list */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: none; }
     }
+    .episodes .episode {
+      animation: fadeUp .35s ease both;
+    }
+    .episodes .episode:nth-child(1) { animation-delay: .02s; }
+    .episodes .episode:nth-child(2) { animation-delay: .04s; }
+    .episodes .episode:nth-child(3) { animation-delay: .06s; }
+    .episodes .episode:nth-child(4) { animation-delay: .08s; }
+    .episodes .episode:nth-child(5) { animation-delay: .10s; }
+    .episodes .episode:nth-child(6) { animation-delay: .12s; }
+    .episodes .episode:nth-child(n+7) { animation-delay: .14s; }
   </style>
 </head>
 <body>
 
 <!-- Header -->
 <header class="header">
-  <div class="cover" id="cover">🎙</div>
+  <div class="cover" id="cover" aria-hidden="true">
+    <!-- Default waveform icon, replaced by <img> if /cover.{jpg,png} exists -->
+    <svg class="cover-default" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g fill="white" opacity="0.95">
+        <rect x="6"  y="26" width="6" height="12" rx="3"/>
+        <rect x="16" y="20" width="6" height="24" rx="3"/>
+        <rect x="26" y="12" width="6" height="40" rx="3"/>
+        <rect x="36" y="18" width="6" height="28" rx="3"/>
+        <rect x="46" y="24" width="6" height="16" rx="3"/>
+      </g>
+    </svg>
+  </div>
   <div class="header-info">
     <h1>NoteCast</h1>
     <div class="subtitle" id="subtitle">Loading…</div>
   </div>
   <div class="header-actions">
-    <button class="btn btn-icon" id="adminBtn" title="Admin" aria-label="Admin">
-      <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
+    <button class="btn btn-icon" id="adminBtn" title="Admin" aria-label="Open admin panel">
+      <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
     </button>
   </div>
 </header>
 
 <!-- Episode list -->
-<div class="section">
-  <div class="section-title">Episodes</div>
+<main class="section">
+  <div class="section-title">
+    <span>Episodes</span>
+    <span class="count" id="sectionCount"></span>
+  </div>
   <div class="episodes" id="episodes">
     <div class="empty"><div class="spinner"></div></div>
   </div>
-</div>
+</main>
 
 <!-- Player -->
-<div class="player" id="player">
+<div class="player" id="player" role="region" aria-label="Audio player">
   <div class="player-top">
-    <div class="player-title" id="playerTitle">—</div>
+    <div class="player-cover" id="playerCover" aria-hidden="true">
+      <svg viewBox="0 0 64 64" fill="none">
+        <g fill="white" opacity="0.95">
+          <rect x="6"  y="26" width="6" height="12" rx="3"/>
+          <rect x="16" y="20" width="6" height="24" rx="3"/>
+          <rect x="26" y="12" width="6" height="40" rx="3"/>
+          <rect x="36" y="18" width="6" height="28" rx="3"/>
+          <rect x="46" y="24" width="6" height="16" rx="3"/>
+        </g>
+      </svg>
+    </div>
+    <div class="player-meta">
+      <div class="player-title" id="playerTitle">—</div>
+      <div class="player-sub" id="playerSub">Now playing</div>
+    </div>
     <div class="player-controls">
-      <button class="ctrl-btn" id="skipBack" title="−15s">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.45"/><text x="9" y="15" font-size="6" fill="currentColor" stroke="none" font-family="sans-serif">15</text></svg>
+      <button class="ctrl-btn" id="skipBack" title="−15s" aria-label="Skip back 15 seconds">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="1 4 1 10 7 10"/>
+          <path d="M3.51 15a9 9 0 1 0 .49-3.45"/>
+          <text x="9" y="15.5" font-size="6.5" fill="currentColor" stroke="none" font-family="-apple-system, sans-serif" font-weight="600">15</text>
+        </svg>
       </button>
-      <button class="ctrl-btn play-pause" id="playPause">
-        <svg id="iconPlay" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-        <svg id="iconPause" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+      <button class="ctrl-btn play-pause" id="playPause" aria-label="Play / pause">
+        <svg id="iconPlay" class="icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="iconPause" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
       </button>
-      <button class="ctrl-btn" id="skipFwd" title="+30s">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-3.45"/><text x="9" y="15" font-size="6" fill="currentColor" stroke="none" font-family="sans-serif">30</text></svg>
+      <button class="ctrl-btn" id="skipFwd" title="+30s" aria-label="Skip forward 30 seconds">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"/>
+          <path d="M20.49 15a9 9 0 1 1-.49-3.45"/>
+          <text x="9" y="15.5" font-size="6.5" fill="currentColor" stroke="none" font-family="-apple-system, sans-serif" font-weight="600">30</text>
+        </svg>
       </button>
     </div>
   </div>
   <div class="player-progress">
     <span class="time" id="timeElapsed">0:00</span>
-    <div class="progress-bar" id="progressBar">
+    <div class="progress-bar" id="progressBar" role="slider" aria-label="Seek">
       <div class="progress-fill" id="progressFill"></div>
     </div>
     <span class="time" id="timeDuration">0:00</span>
@@ -331,11 +725,11 @@
 </div>
 
 <!-- Admin modal -->
-<div class="overlay" id="overlay">
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="adminTitle">
   <div class="modal">
     <div class="modal-header">
-      <h2>Admin</h2>
-      <button class="close-btn" id="closeAdmin">
+      <h2 id="adminTitle">Admin</h2>
+      <button class="close-btn" id="closeAdmin" aria-label="Close">
         <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
       </button>
     </div>
@@ -350,7 +744,7 @@
         <div class="stat-label">Next poll</div>
       </div>
       <div class="stat" style="grid-column:span 2">
-        <div class="stat-value" style="font-size:14px;font-weight:500" id="statUpdated">—</div>
+        <div class="stat-value" style="font-size:15px;font-weight:550;background:none;-webkit-background-clip:initial;color:var(--text)" id="statUpdated">—</div>
         <div class="stat-label">Last updated</div>
       </div>
     </div>
@@ -361,19 +755,19 @@
       <button class="btn" id="copyRss">Copy</button>
     </div>
 
-    <div style="margin-top:20px">
+    <div style="margin-top:22px">
       <div class="section-label">Re-authenticate</div>
       <div class="upload-area">
         <p>Upload <code>storage_state.json</code> from your Mac</p>
         <label class="btn" style="cursor:pointer">
-          Choose File
+          Choose file
           <input type="file" id="authFile" accept=".json,application/json">
         </label>
-        <div style="margin-top:8px" id="authFilename" style="font-size:12px;color:var(--text2)"></div>
+        <div class="upload-filename" id="authFilename"></div>
         <div class="upload-result" id="uploadResult"></div>
       </div>
-      <button class="btn btn-accent" id="uploadBtn" style="width:100%;margin-top:10px;justify-content:center">
-        Upload Credentials
+      <button class="btn btn-accent" id="uploadBtn" style="width:100%;margin-top:12px;justify-content:center;padding:12px">
+        Upload credentials
       </button>
     </div>
   </div>
@@ -407,9 +801,15 @@
     if (s < 60) return `${s}s`;
     return `${Math.floor(s / 60)}m`;
   }
+  function escapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, c => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+  }
 
-  // ── Cover ─────────────────────────────────────────
+  // ── Cover (default SVG, replaced by uploaded image if available) ──
   const coverEl = document.getElementById('cover');
+  const playerCoverEl = document.getElementById('playerCover');
   function tryLoadCover() {
     for (const ext of ['jpg', 'jpeg', 'png']) {
       const img = new Image();
@@ -417,6 +817,10 @@
       img.onload = () => {
         coverEl.innerHTML = '';
         coverEl.appendChild(img);
+        const img2 = new Image();
+        img2.src = img.src;
+        playerCoverEl.innerHTML = '';
+        playerCoverEl.appendChild(img2);
       };
     }
   }
@@ -428,31 +832,55 @@
     try {
       const res = await fetch('/api/episodes');
       episodes = await res.json();
-      document.getElementById('subtitle').textContent =
-        episodes.length === 1 ? '1 episode' : `${episodes.length} episodes`;
+      const countText = episodes.length === 1 ? '1 episode' : `${episodes.length} episodes`;
+      document.getElementById('subtitle').textContent = countText;
+      document.getElementById('sectionCount').textContent = countText;
 
       if (!episodes.length) {
-        list.innerHTML = '<div class="empty"><div class="icon">🎙</div>No episodes yet. NoteCast is polling your notebooks.</div>';
+        list.innerHTML = `
+          <div class="empty">
+            <div class="empty-illu">
+              <svg viewBox="0 0 64 64" fill="none">
+                <g fill="white" opacity="0.95">
+                  <rect x="6"  y="26" width="6" height="12" rx="3"/>
+                  <rect x="16" y="20" width="6" height="24" rx="3"/>
+                  <rect x="26" y="12" width="6" height="40" rx="3"/>
+                  <rect x="36" y="18" width="6" height="28" rx="3"/>
+                  <rect x="46" y="24" width="6" height="16" rx="3"/>
+                </g>
+              </svg>
+            </div>
+            <h3>No episodes yet</h3>
+            <p>NoteCast is polling your notebooks. New episodes will show up here automatically.</p>
+          </div>`;
         return;
       }
 
       list.innerHTML = episodes.map(ep => `
-        <div class="episode" id="ep-${ep.id}" data-id="${ep.id}" data-url="${ep.url}">
-          <button class="play-btn" aria-label="Play">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        <div class="episode" id="ep-${escapeHtml(ep.id)}" data-id="${escapeHtml(ep.id)}" data-filename="${escapeHtml(ep.filename)}">
+          <button class="play-btn" aria-label="Play ${escapeHtml(ep.title)}">
+            <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
           </button>
           <div class="ep-info">
-            <div class="ep-title">${ep.title}</div>
-            <div class="ep-meta">${[ep.notebook, relTime(ep.created_at)].filter(Boolean).join(' · ')}</div>
+            <div class="ep-title">${escapeHtml(ep.title)}</div>
+            <div class="ep-meta">${[escapeHtml(ep.notebook ?? ''), relTime(ep.created_at)].filter(Boolean).join(' · ')}</div>
+          </div>
+          <div class="ep-aside">
+            <span class="eq" aria-hidden="true"><span></span><span></span><span></span></span>
           </div>
         </div>
       `).join('');
 
       list.querySelectorAll('.episode').forEach(el => {
-        el.addEventListener('click', () => playEpisode(el.dataset.id, el.dataset.url, el.querySelector('.ep-title').textContent));
+        el.addEventListener('click', () => playEpisode(
+          el.dataset.id,
+          `/episodes/${el.dataset.filename}`,
+          el.querySelector('.ep-title').textContent
+        ));
       });
     } catch {
-      list.innerHTML = '<div class="empty">Could not load episodes.</div>';
+      list.innerHTML = '<div class="empty"><p>Could not load episodes.</p></div>';
     }
   }
 
@@ -465,9 +893,11 @@
     if (currentId === id && !audio.paused) {
       audio.pause();
       setPlayIcon(false);
+      setEpisodePlayIcon(id, false);
       return;
     }
 
+    if (currentId && currentId !== id) setEpisodePlayIcon(currentId, false);
     currentId = id;
     if (audio.src !== url) {
       audio.src = url;
@@ -475,8 +905,11 @@
     }
     audio.play();
     document.getElementById('playerTitle').textContent = title;
+    const ep = episodes.find(e => e.id === id);
+    document.getElementById('playerSub').textContent = ep?.notebook ? ep.notebook : 'Now playing';
     document.getElementById('player').classList.add('visible');
     setPlayIcon(true);
+    setEpisodePlayIcon(id, true);
   }
 
   function setPlayIcon(playing) {
@@ -484,9 +917,16 @@
     document.getElementById('iconPause').style.display = playing ? '' : 'none';
   }
 
+  function setEpisodePlayIcon(id, playing) {
+    const el = document.getElementById(`ep-${id}`);
+    if (!el) return;
+    el.querySelector('.icon-play').style.display = playing ? 'none' : '';
+    el.querySelector('.icon-pause').style.display = playing ? '' : 'none';
+  }
+
   document.getElementById('playPause').addEventListener('click', () => {
-    if (audio.paused) { audio.play(); setPlayIcon(true); }
-    else { audio.pause(); setPlayIcon(false); }
+    if (audio.paused) { audio.play(); setPlayIcon(true); setEpisodePlayIcon(currentId, true); }
+    else { audio.pause(); setPlayIcon(false); setEpisodePlayIcon(currentId, false); }
   });
   document.getElementById('skipBack').addEventListener('click', () => audio.currentTime = Math.max(0, audio.currentTime - 15));
   document.getElementById('skipFwd').addEventListener('click', () => audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 30));
@@ -499,11 +939,12 @@
   });
   audio.addEventListener('ended', () => {
     setPlayIcon(false);
+    setEpisodePlayIcon(currentId, false);
     document.querySelectorAll('.episode').forEach(e => e.classList.remove('playing'));
     const idx = episodes.findIndex(e => e.id === currentId);
     if (idx >= 0 && idx < episodes.length - 1) {
       const next = episodes[idx + 1];
-      playEpisode(next.id, next.url, next.title);
+      playEpisode(next.id, `/episodes/${next.filename}`, next.title);
     }
   });
 
@@ -521,6 +962,7 @@
   });
   document.getElementById('closeAdmin').addEventListener('click', () => overlay.classList.remove('open'));
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') overlay.classList.remove('open'); });
 
   async function loadStatus() {
     try {
@@ -535,8 +977,9 @@
   document.getElementById('rssUrl').textContent = feedUrl;
   document.getElementById('copyRss').addEventListener('click', () => {
     navigator.clipboard.writeText(feedUrl).then(() => {
-      document.getElementById('copyRss').textContent = 'Copied!';
-      setTimeout(() => document.getElementById('copyRss').textContent = 'Copy', 1500);
+      const btn = document.getElementById('copyRss');
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy', 1500);
     });
   });
 
@@ -548,7 +991,12 @@
   document.getElementById('uploadBtn').addEventListener('click', async () => {
     const file = authFile.files[0];
     const result = document.getElementById('uploadResult');
-    if (!file) { result.textContent = 'Choose a file first.'; result.className = 'upload-result err'; result.style.display = 'block'; return; }
+    if (!file) {
+      result.textContent = 'Choose a file first.';
+      result.className = 'upload-result err';
+      result.style.display = 'block';
+      return;
+    }
     const fd = new FormData();
     fd.append('file', file);
     try {

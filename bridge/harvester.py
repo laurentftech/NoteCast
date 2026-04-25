@@ -28,7 +28,7 @@ FEED_IMAGE_URL = os.getenv('FEED_IMAGE_URL', '')
 # Paths
 PUBLIC_DIR = Path('/public')
 EPISODES_DIR = PUBLIC_DIR / 'episodes'
-HISTORY_FILE = Path('/app/history.json')
+HISTORY_FILE = Path('/data/history.json')
 FEED_FILE = PUBLIC_DIR / 'feed.xml'
 
 # Ensure directories exist
@@ -39,10 +39,35 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 def load_history():
+    if HISTORY_FILE.is_dir():
+        logger.error(f"{HISTORY_FILE} is a directory — fix on host: rm -rf bridge/history.json && echo '{{}}' > bridge/history.json")
+        return {}
     if HISTORY_FILE.exists():
-        with open(HISTORY_FILE, 'r') as f:
-            return json.load(f)
+        try:
+            with open(HISTORY_FILE, 'r') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return {}
     return {}
+
+
+def recover_history_from_disk(history: dict) -> dict:
+    """Add placeholder entries for MP3s on disk not tracked in history."""
+    known_filenames = {v['mp3_filename'] for v in history.values()}
+    recovered = 0
+    for mp3 in EPISODES_DIR.glob('*.mp3'):
+        if mp3.name not in known_filenames:
+            artifact_id = mp3.stem
+            mtime = datetime.fromtimestamp(mp3.stat().st_mtime, tz=timezone.utc).isoformat()
+            history[artifact_id] = {
+                'title': f'Episode {mp3.stem[:8]}',
+                'created_at': mtime,
+                'mp3_filename': mp3.name,
+                'notebook': '',
+            }
+            recovered += 1
+    if recovered:
+        logger.info(f"Recovered {recovered} episodes from disk into history")
 
 def save_history(history):
     with open(HISTORY_FILE, 'w') as f:
@@ -59,25 +84,18 @@ def download_wav_bytes(artifact_id, wav_data):
         logger.error(f"Failed to save WAV for artifact {artifact_id}: {e}")
         return None
 
-def convert_to_mp3(wav_path, mp3_path):
-    """Convert WAV to MP3 using ffmpeg."""
+def remux_to_m4a(src_path, m4a_path):
     try:
-        # ffmpeg -i input.wav -ac 1 -ab 96k -af loudnorm output.mp3
-        cmd = [
-            'ffmpeg',
-            '-i', str(wav_path),
-            '-ac', '1',
-            '-ab', '96k',
-            '-af', 'loudnorm',
-            str(mp3_path)
-        ]
-        subprocess.run(cmd, check=True, capture_output=True)
+        subprocess.run(
+            ['ffmpeg', '-y', '-i', str(src_path), '-c', 'copy', str(m4a_path)],
+            check=True, capture_output=True,
+        )
         return True
     except subprocess.CalledProcessError as e:
-        logger.error(f"FFmpeg failed: {e.stderr.decode()}")
+        logger.error(f"FFmpeg remux failed: {e.stderr.decode()}")
         return None
     except Exception as e:
-        logger.error(f"Unexpected error during conversion: {e}")
+        logger.error(f"Unexpected error during remux: {e}")
         return None
 
 def rebuild_feed(history):
@@ -123,7 +141,7 @@ def rebuild_feed(history):
 
         episode = Episode(
             title=episode_title,
-            media=Media(media_url, file_size, type='audio/mpeg'),
+            media=Media(media_url, file_size, type='audio/mp4'),
             publication_date=pub_date,
         )
         podcast.add_episode(episode)
@@ -133,12 +151,16 @@ def rebuild_feed(history):
 
 def purge_old_episodes(history):
     """Remove episodes older than RETENTION_DAYS."""
-    cutoff = datetime.now() - timedelta(days=RETENTION_DAYS)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=RETENTION_DAYS)
     to_remove = []
     for artifact_id, data in history.items():
         try:
-            created = datetime.fromisoformat(data['created_at'].replace('Z', '+00:00'))
-            if created < cutoff:
+            # Use downloaded_at for retention; fall back to file mtime, then created_at
+            date_str = data.get('downloaded_at') or data.get('created_at', '')
+            ts = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            if ts < cutoff:
                 to_remove.append(artifact_id)
         except Exception:
             # If we can't parse the date, we keep it (or could remove? but safer to keep)
@@ -195,6 +217,8 @@ async def main_async():
             await asyncio.sleep(60)
 
     history = load_history()
+    recover_history_from_disk(history)
+    save_history(history)
     logger.info(f"Starting harvester with {len(history)} known artifacts")
 
     while True:
@@ -235,16 +259,16 @@ async def main_async():
                         logger.info(f"Processing new audio artifact: {artifact_id} - {title}")
 
                         temp_path = Path(f'/tmp/{artifact_id}.mp4')
-                        mp3_filename = f"{artifact_id}.mp3"
-                        mp3_path = EPISODES_DIR / mp3_filename
+                        m4a_filename = f"{artifact_id}.m4a"
+                        m4a_path = EPISODES_DIR / m4a_filename
                         try:
                             await client.artifacts.download_audio(notebook_id, str(temp_path), artifact_id=artifact_id)
 
-                            if not convert_to_mp3(temp_path, mp3_path):
-                                logger.error(f"Failed to convert audio to MP3 for {artifact_id}")
+                            if not remux_to_m4a(temp_path, m4a_path):
+                                logger.error(f"Failed to remux audio for {artifact_id}")
                                 continue
 
-                            logger.info(f"Successfully converted and saved MP3 for {artifact_id}")
+                            logger.info(f"Remuxed to M4A for {artifact_id}")
                         except RPCError as e:
                             logger.error(f"RPC error downloading artifact {artifact_id}: {e}")
                             continue
@@ -257,7 +281,8 @@ async def main_async():
                         history[artifact_id] = {
                             'title': title,
                             'created_at': created_at,
-                            'mp3_filename': mp3_filename,
+                            'downloaded_at': datetime.now(timezone.utc).isoformat(),
+                            'mp3_filename': m4a_filename,
                             'notebook': notebook_title,
                         }
                         logger.info(f"Successfully processed artifact {artifact_id}")

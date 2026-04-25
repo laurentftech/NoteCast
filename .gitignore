@@ -1,4 +1,6 @@
 .env
 auth/
+data/
 public/episodes/
 public/feed.xml
+.spec-gen/decisions/
