@@ -100,8 +100,26 @@ Paste this URL into Overcast, Pocket Casts, Apple Podcasts, or any RSS-capable a
 |---|---|---|---|
 | `BASE_URL` | yes | — | Public URL used in RSS episode links |
 | `CADDY_DOMAIN` | yes | — | Domain for Caddy auto-HTTPS |
-| `POLL_INTERVAL` | no | `300` | Seconds between polls |
+| `POLL_INTERVAL` | no | `86400` | Seconds between automatic polls |
 | `RETENTION_DAYS` | no | `14` | Days before episodes are deleted |
+| `BRIDGE_API_KEY` | no | *(none)* | If set, protects `/auth/upload` and `/api/poll` — requests must include `X-Api-Key: <value>` |
+| `FEED_IMAGE_URL` | no | *(none)* | Cover art URL for the RSS feed (1400×1400px recommended); auto-detected from `public/cover.jpg` if absent |
+| `BRIDGE_PORT` | no | `8080` | Internal HTTP port for the bridge |
+
+---
+
+## API endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/status` | — | Bridge status: episode count, last poll, next poll countdown |
+| `GET` | `/api/episodes` | — | Episode list as JSON |
+| `POST` | `/api/poll` | key | Trigger an immediate poll (skips the wait) |
+| `POST` | `/auth/upload` | key | Upload a new `storage_state.json` |
+| `GET` | `/health` | — | Health check |
+| `GET` | `/feed.xml` | — | RSS feed |
+
+*key = requires `X-Api-Key` header when `BRIDGE_API_KEY` is set*
 
 ---
 
