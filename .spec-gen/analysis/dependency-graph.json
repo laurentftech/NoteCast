@@ -138,19 +138,19 @@
         "absolutePath": "/Users/laurent/Projets/NoteCast/ARCHITECTURE.md",
         "name": "ARCHITECTURE.md",
         "extension": ".md",
-        "size": 744,
-        "lines": 33,
+        "size": 2638,
+        "lines": 61,
         "depth": 0,
         "directory": "",
         "isEntryPoint": false,
         "isConfig": false,
         "isTest": false,
         "isGenerated": false,
-        "score": 15,
+        "score": 20,
         "scoreBreakdown": {
           "name": 0,
           "path": 15,
-          "structure": 0,
+          "structure": 5,
           "connectivity": 0
         },
         "tags": []
@@ -169,14 +169,85 @@
       }
     },
     {
+      "id": "/Users/laurent/Projets/NoteCast/README.md",
+      "file": {
+        "path": "README.md",
+        "absolutePath": "/Users/laurent/Projets/NoteCast/README.md",
+        "name": "README.md",
+        "extension": ".md",
+        "size": 3261,
+        "lines": 123,
+        "depth": 0,
+        "directory": "",
+        "isEntryPoint": false,
+        "isConfig": false,
+        "isTest": false,
+        "isGenerated": false,
+        "score": 20,
+        "scoreBreakdown": {
+          "name": 0,
+          "path": 15,
+          "structure": 5,
+          "connectivity": 0
+        },
+        "tags": []
+      },
+      "exports": [],
+      "metrics": {
+        "inDegree": 0,
+        "outDegree": 0,
+        "betweenness": 0,
+        "pageRank": 1
+      },
+      "cluster": {
+        "id": "cluster-0",
+        "name": "(root)",
+        "color": "#7c6af7"
+      }
+    },
+    {
+      "id": "/Users/laurent/Projets/NoteCast/public/index.html",
+      "file": {
+        "path": "public/index.html",
+        "absolutePath": "/Users/laurent/Projets/NoteCast/public/index.html",
+        "name": "index.html",
+        "extension": ".html",
+        "size": 21545,
+        "lines": 572,
+        "depth": 1,
+        "directory": "public",
+        "isEntryPoint": true,
+        "isConfig": false,
+        "isTest": false,
+        "isGenerated": false,
+        "score": 15,
+        "scoreBreakdown": {
+          "name": 0,
+          "path": 0,
+          "structure": 15,
+          "connectivity": 0
+        },
+        "tags": [
+          "entry-point"
+        ]
+      },
+      "exports": [],
+      "metrics": {
+        "inDegree": 0,
+        "outDegree": 0,
+        "betweenness": 0,
+        "pageRank": 1
+      }
+    },
+    {
       "id": "/Users/laurent/Projets/NoteCast/Caddyfile",
       "file": {
         "path": "Caddyfile",
         "absolutePath": "/Users/laurent/Projets/NoteCast/Caddyfile",
         "name": "Caddyfile",
         "extension": "",
-        "size": 67,
-        "lines": 5,
+        "size": 383,
+        "lines": 26,
         "depth": 0,
         "directory": "",
         "isEntryPoint": false,
@@ -212,8 +283,8 @@
         "absolutePath": "/Users/laurent/Projets/NoteCast/docker-compose.yml",
         "name": "docker-compose.yml",
         "extension": ".yml",
-        "size": 521,
-        "lines": 29,
+        "size": 770,
+        "lines": 39,
         "depth": 0,
         "directory": "",
         "isEntryPoint": false,
@@ -249,8 +320,8 @@
         "absolutePath": "/Users/laurent/Projets/NoteCast/bridge/harvester.py",
         "name": "harvester.py",
         "extension": ".py",
-        "size": 10600,
-        "lines": 284,
+        "size": 13053,
+        "lines": 362,
         "depth": 1,
         "directory": "bridge",
         "isEntryPoint": false,
@@ -273,7 +344,7 @@
           "isType": false,
           "isReExport": false,
           "kind": "function",
-          "line": 30
+          "line": 32
         },
         {
           "name": "save_history",
@@ -281,7 +352,7 @@
           "isType": false,
           "isReExport": false,
           "kind": "function",
-          "line": 34
+          "line": 38
         },
         {
           "name": "download_wav_bytes",
@@ -289,7 +360,7 @@
           "isType": false,
           "isReExport": false,
           "kind": "function",
-          "line": 38
+          "line": 39
         },
         {
           "name": "convert_to_mp3",
@@ -297,7 +368,7 @@
           "isType": false,
           "isReExport": false,
           "kind": "function",
-          "line": 51
+          "line": 53
         },
         {
           "name": "rebuild_feed",
@@ -305,7 +376,7 @@
           "isType": false,
           "isReExport": false,
           "kind": "function",
-          "line": 70
+          "line": 74
         },
         {
           "name": "purge_old_episodes",
@@ -313,7 +384,7 @@
           "isType": false,
           "isReExport": false,
           "kind": "function",
-          "line": 103
+          "line": 121
         },
         {
           "name": "main",
@@ -321,7 +392,7 @@
           "isType": false,
           "isReExport": false,
           "kind": "function",
-          "line": 248
+          "line": 338
         },
         {
           "name": "BASE_URL",
@@ -329,7 +400,7 @@
           "isType": false,
           "isReExport": false,
           "kind": "variable",
-          "line": 15
+          "line": 16
         },
         {
           "name": "POLL_INTERVAL",
@@ -337,7 +408,7 @@
           "isType": false,
           "isReExport": false,
           "kind": "variable",
-          "line": 15
+          "line": 16
         },
         {
           "name": "RETENTION_DAYS",
@@ -345,18 +416,10 @@
           "isType": false,
           "isReExport": false,
           "kind": "variable",
-          "line": 17
+          "line": 18
         },
         {
-          "name": "PUBLIC_DIR",
-          "isDefault": false,
-          "isType": false,
-          "isReExport": false,
-          "kind": "variable",
-          "line": 19
-        },
-        {
-          "name": "EPISODES_DIR",
+          "name": "BRIDGE_PORT",
           "isDefault": false,
           "isType": false,
           "isReExport": false,
@@ -364,7 +427,7 @@
           "line": 20
         },
         {
-          "name": "HISTORY_FILE",
+          "name": "BRIDGE_API_KEY",
           "isDefault": false,
           "isType": false,
           "isReExport": false,
@@ -372,12 +435,52 @@
           "line": 21
         },
         {
-          "name": "FEED_FILE",
+          "name": "FEED_IMAGE_URL",
           "isDefault": false,
           "isType": false,
           "isReExport": false,
           "kind": "variable",
           "line": 22
+        },
+        {
+          "name": "PUBLIC_DIR",
+          "isDefault": false,
+          "isType": false,
+          "isReExport": false,
+          "kind": "variable",
+          "line": 23
+        },
+        {
+          "name": "EPISODES_DIR",
+          "isDefault": false,
+          "isType": false,
+          "isReExport": false,
+          "kind": "variable",
+          "line": 24
+        },
+        {
+          "name": "HISTORY_FILE",
+          "isDefault": false,
+          "isType": false,
+          "isReExport": false,
+          "kind": "variable",
+          "line": 25
+        },
+        {
+          "name": "FEED_FILE",
+          "isDefault": false,
+          "isType": false,
+          "isReExport": false,
+          "kind": "variable",
+          "line": 25
+        },
+        {
+          "name": "AUTH_STORAGE_FILE",
+          "isDefault": false,
+          "isType": false,
+          "isReExport": false,
+          "kind": "variable",
+          "line": 265
         }
       ],
       "metrics": {
@@ -399,8 +502,8 @@
         "absolutePath": "/Users/laurent/Projets/NoteCast/bridge/requirements.txt",
         "name": "requirements.txt",
         "extension": ".txt",
-        "size": 52,
-        "lines": 4,
+        "size": 86,
+        "lines": 6,
         "depth": 1,
         "directory": "bridge",
         "isEntryPoint": false,
@@ -436,8 +539,8 @@
         "absolutePath": "/Users/laurent/Projets/NoteCast/bridge/Dockerfile",
         "name": "Dockerfile",
         "extension": "",
-        "size": 366,
-        "lines": 14,
+        "size": 560,
+        "lines": 18,
         "depth": 1,
         "directory": "bridge",
         "isEntryPoint": false,
@@ -473,8 +576,8 @@
         "absolutePath": "/Users/laurent/Projets/NoteCast/bridge/history.json",
         "name": "history.json",
         "extension": ".json",
-        "size": 3,
-        "lines": 2,
+        "size": 2130,
+        "lines": 48,
         "depth": 1,
         "directory": "bridge",
         "isEntryPoint": false,
@@ -511,6 +614,7 @@
       "name": "(root)",
       "files": [
         "/Users/laurent/Projets/NoteCast/ARCHITECTURE.md",
+        "/Users/laurent/Projets/NoteCast/README.md",
         "/Users/laurent/Projets/NoteCast/Caddyfile",
         "/Users/laurent/Projets/NoteCast/docker-compose.yml"
       ],
@@ -545,6 +649,8 @@
     "byImportance": [
       "/Users/laurent/Projets/NoteCast/example/app.py",
       "/Users/laurent/Projets/NoteCast/ARCHITECTURE.md",
+      "/Users/laurent/Projets/NoteCast/README.md",
+      "/Users/laurent/Projets/NoteCast/public/index.html",
       "/Users/laurent/Projets/NoteCast/Caddyfile",
       "/Users/laurent/Projets/NoteCast/docker-compose.yml",
       "/Users/laurent/Projets/NoteCast/bridge/harvester.py",
@@ -555,6 +661,8 @@
     "byConnectivity": [
       "/Users/laurent/Projets/NoteCast/example/app.py",
       "/Users/laurent/Projets/NoteCast/ARCHITECTURE.md",
+      "/Users/laurent/Projets/NoteCast/README.md",
+      "/Users/laurent/Projets/NoteCast/public/index.html",
       "/Users/laurent/Projets/NoteCast/Caddyfile",
       "/Users/laurent/Projets/NoteCast/docker-compose.yml",
       "/Users/laurent/Projets/NoteCast/bridge/harvester.py",
@@ -571,6 +679,8 @@
     "orphanNodes": [
       "/Users/laurent/Projets/NoteCast/example/app.py",
       "/Users/laurent/Projets/NoteCast/ARCHITECTURE.md",
+      "/Users/laurent/Projets/NoteCast/README.md",
+      "/Users/laurent/Projets/NoteCast/public/index.html",
       "/Users/laurent/Projets/NoteCast/Caddyfile",
       "/Users/laurent/Projets/NoteCast/docker-compose.yml",
       "/Users/laurent/Projets/NoteCast/bridge/harvester.py",
@@ -581,7 +691,7 @@
   },
   "cycles": [],
   "statistics": {
-    "nodeCount": 8,
+    "nodeCount": 10,
     "edgeCount": 0,
     "importEdgeCount": 0,
     "httpEdgeCount": 0,

@@ -8,6 +8,30 @@
     "required": false
   },
   {
+    "name": "BRIDGE_API_KEY",
+    "files": [
+      "bridge/harvester.py"
+    ],
+    "hasDefault": false,
+    "required": false
+  },
+  {
+    "name": "BRIDGE_PORT",
+    "files": [
+      "bridge/harvester.py"
+    ],
+    "hasDefault": false,
+    "required": false
+  },
+  {
+    "name": "FEED_IMAGE_URL",
+    "files": [
+      "bridge/harvester.py"
+    ],
+    "hasDefault": false,
+    "required": false
+  },
+  {
     "name": "NOTEBOOKLM_REST_API_KEY",
     "files": [
       "example/app.py"

@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-04-25T08:26:34.520Z",
+  "generatedAt": "2026-04-25T12:10:29.642Z",
   "stats": {
-    "totalFunctions": 32,
+    "totalFunctions": 39,
     "withIssues": 6,
     "unreachable": 0,
     "highFanIn": 2,
@@ -41,14 +41,14 @@
       "function": "main_async",
       "file": "/Users/laurent/Projets/NoteCast/bridge/harvester.py",
       "fanIn": 1,
-      "fanOut": 15,
-      "depth": 1,
+      "fanOut": 14,
+      "depth": 2,
       "sccSize": 1,
       "requirements": [],
       "issues": [
         "high_fan_out"
       ],
-      "priorityScore": 3.4
+      "priorityScore": 3.3
     },
     {
       "function": "add_source_file",
@@ -67,8 +67,8 @@
       "function": "rebuild_feed",
       "file": "/Users/laurent/Projets/NoteCast/bridge/harvester.py",
       "fanIn": 1,
-      "fanOut": 10,
-      "depth": 2,
+      "fanOut": 13,
+      "depth": 3,
       "sccSize": 1,
       "requirements": [
         "rebuildFeed"
@@ -76,14 +76,14 @@
       "issues": [
         "high_fan_out"
       ],
-      "priorityScore": 2.8
+      "priorityScore": 2.6
     },
     {
       "function": "purge_old_episodes",
       "file": "/Users/laurent/Projets/NoteCast/bridge/harvester.py",
       "fanIn": 1,
       "fanOut": 9,
-      "depth": 2,
+      "depth": 3,
       "sccSize": 1,
       "requirements": [
         "purgeOldEpisodes"
@@ -91,7 +91,7 @@
       "issues": [
         "high_fan_out"
       ],
-      "priorityScore": 2.6
+      "priorityScore": 2.1
     }
   ],
   "cycles": []

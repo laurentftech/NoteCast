@@ -29,11 +29,13 @@
       "suggestedSpecPath": "openspec/specs/architecture-md/spec.md",
       "files": [
         "ARCHITECTURE.md",
+        "README.md",
         "Caddyfile",
         "docker-compose.yml"
       ],
       "entities": [
         "ARCHITECTUREMd",
+        "READMEMd",
         "Caddyfile",
         "DockerComposeYml"
       ],
@@ -47,6 +49,11 @@
       "initializes": [
         "application"
       ]
+    },
+    {
+      "file": "public/index.html",
+      "type": "application-entry",
+      "initializes": []
     }
   ],
   "dataFlow": {
@@ -257,6 +264,30 @@
       "required": false
     },
     {
+      "name": "BRIDGE_API_KEY",
+      "files": [
+        "bridge/harvester.py"
+      ],
+      "hasDefault": false,
+      "required": false
+    },
+    {
+      "name": "BRIDGE_PORT",
+      "files": [
+        "bridge/harvester.py"
+      ],
+      "hasDefault": false,
+      "required": false
+    },
+    {
+      "name": "FEED_IMAGE_URL",
+      "files": [
+        "bridge/harvester.py"
+      ],
+      "hasDefault": false,
+      "required": false
+    },
+    {
       "name": "NOTEBOOKLM_REST_API_KEY",
       "files": [
         "example/app.py"
@@ -290,11 +321,11 @@
     }
   ],
   "statistics": {
-    "totalFiles": 14,
-    "analyzedFiles": 8,
-    "skippedFiles": 6,
-    "avgFileScore": 9.4,
-    "nodeCount": 8,
+    "totalFiles": 22,
+    "analyzedFiles": 10,
+    "skippedFiles": 12,
+    "avgFileScore": 11.5,
+    "nodeCount": 10,
     "edgeCount": 0,
     "cycleCount": 0,
     "clusterCount": 2

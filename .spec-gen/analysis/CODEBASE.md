@@ -3,11 +3,11 @@
 > Add this file to CLAUDE.md or .clinerules so agents absorb it at session start.
 
 ## Overview
-- **77** functions / methods analyzed
-- **149** internal call edges
-- **24** entry points (no internal callers)
+- **99** functions / methods analyzed
+- **194** internal call edges
+- **28** entry points (no internal callers)
 - **2** hub functions (high fan-in)
-- avg fan-in: **1.44**, avg fan-out: **4.09**
+- avg fan-in: **1.31**, avg fan-out: **4.10**
 
 ## Entry points
 Functions with no internal callers — the natural starting point for any task.
@@ -16,13 +16,13 @@ Functions with no internal callers — the natural starting point for any task.
 |----------|------|--------|
 | `add_source_file` | `example/app.py` | 10 |
 | `download_artifact` | `example/app.py` | 7 |
+| `handle_auth_upload` | `bridge/harvester.py` | 6 |
 | `generate_artifact` | `example/app.py` | 5 |
 | `list_notebooks` | `example/app.py` | 4 |
 | `create_notebook` | `example/app.py` | 4 |
 | `get_notebook` | `example/app.py` | 4 |
 | `rename_notebook` | `example/app.py` | 4 |
-| `get_notebook_description` | `example/app.py` | 4 |
-| … | *(16 more)* | |
+| … | *(20 more)* | |
 
 ## Critical hubs
 Most-called functions — modifying these has the widest blast radius.
@@ -37,9 +37,9 @@ These functions coordinate many downstream calls — extend them carefully.
 
 | Function | File | fanOut |
 |----------|------|--------|
-| `main_async` | `bridge/harvester.py` | 15 |
+| `main_async` | `bridge/harvester.py` | 14 |
+| `rebuild_feed` | `bridge/harvester.py` | 13 |
 | `add_source_file` | `example/app.py` | 10 |
-| `rebuild_feed` | `bridge/harvester.py` | 10 |
 | `purge_old_episodes` | `bridge/harvester.py` | 9 |
 
 ## Spec domains

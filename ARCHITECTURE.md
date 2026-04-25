@@ -7,7 +7,7 @@
 
 | Metric | Value |
 |--------|-------|
-| Files | 8 |
+| Files | 10 |
 | Module clusters | 2 |
 | Dependency edges | 0 |
 
@@ -17,8 +17,8 @@ Clusters are groups of tightly coupled files detected by static dependency analy
 
 | Cluster | Role | Files | Depends on |
 |---------|------|-------|------------|
+| **(root)** | `internal` | 4 | — |
 | **bridge** | `API layer` | 4 | — |
-| **(root)** | `internal` | 3 | — |
 
 ### Key files per cluster
 
@@ -31,6 +31,7 @@ Functions with no internal callers — the public-facing roots of the codebase.
 
 - `add_source_file` — `/Users/laurent/Projets/NoteCast/example/app.py` (Python)
 - `download_artifact` — `/Users/laurent/Projets/NoteCast/example/app.py` (Python)
+- `handle_auth_upload` — `/Users/laurent/Projets/NoteCast/bridge/harvester.py` (Python)
 - `generate_artifact` — `/Users/laurent/Projets/NoteCast/example/app.py` (Python)
 - `list_notebooks` — `/Users/laurent/Projets/NoteCast/example/app.py` (Python)
 - `create_notebook` — `/Users/laurent/Projets/NoteCast/example/app.py` (Python)
@@ -45,10 +46,9 @@ Functions with no internal callers — the public-facing roots of the codebase.
 - `chat_ask` — `/Users/laurent/Projets/NoteCast/example/app.py` (Python)
 - `list_artifacts` — `/Users/laurent/Projets/NoteCast/example/app.py` (Python)
 - `poll_task` — `/Users/laurent/Projets/NoteCast/example/app.py` (Python)
+- `handle_episodes` — `/Users/laurent/Projets/NoteCast/bridge/harvester.py` (Python)
 - `get_notebook_summary` — `/Users/laurent/Projets/NoteCast/example/app.py` (Python)
 - `get_source_guide` — `/Users/laurent/Projets/NoteCast/example/app.py` (Python)
-- `delete_notebook` — `/Users/laurent/Projets/NoteCast/example/app.py` (Python)
-- `delete_source` — `/Users/laurent/Projets/NoteCast/example/app.py` (Python)
 
 ## Critical Hubs
 
