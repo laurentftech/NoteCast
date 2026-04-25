@@ -1,0 +1,213 @@
+{
+  "stage": "entities",
+  "success": true,
+  "data": [
+    {
+      "name": "Artifact",
+      "description": "Represents a media file that needs processing.",
+      "properties": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Unique identifier for the artifact",
+          "required": true
+        },
+        {
+          "name": "url",
+          "type": "string",
+          "description": "URL where the artifact is located",
+          "required": true
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "description": "Type of the artifact (e.g., audio, video)",
+          "required": true
+        }
+      ],
+      "relationships": [
+        {
+          "targetEntity": "Episode",
+          "type": "belongs-to",
+          "description": "Artifact is associated with an episode"
+        }
+      ],
+      "validations": [
+        "URL must be valid and accessible",
+        "Type must be one of the supported formats"
+      ],
+      "scenarios": [
+        {
+          "name": "Process artifact",
+          "given": "An artifact with a valid URL",
+          "when": "process_artifact() is called",
+          "then": "The artifact is downloaded and converted to MP3 format",
+          "and": [
+            "A temporary file is created for processing",
+            "The artifact is logged for tracking"
+          ]
+        }
+      ],
+      "location": "/Users/laurent/Projets/NoteCast/bridge/harvester.py"
+    },
+    {
+      "name": "Episode",
+      "description": "Represents an episode in a podcast.",
+      "properties": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Unique identifier for the episode",
+          "required": true
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "description": "Title of the episode",
+          "required": true
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "description": "Description of the episode",
+          "required": true
+        },
+        {
+          "name": "created_at",
+          "type": "datetime",
+          "description": "Creation timestamp of the episode",
+          "required": true
+        }
+      ],
+      "relationships": [
+        {
+          "targetEntity": "Podcast",
+          "type": "belongs-to",
+          "description": "Episode belongs to a podcast"
+        },
+        {
+          "targetEntity": "Media",
+          "type": "has-one",
+          "description": "Episode has associated media"
+        }
+      ],
+      "validations": [
+        "Title must not be empty",
+        "Description must not be empty",
+        "Created_at must be a valid datetime"
+      ],
+      "scenarios": [
+        {
+          "name": "Purge old episodes",
+          "given": "Episodes older than a certain threshold",
+          "when": "purge_old_episodes() is called",
+          "then": "Old episodes are removed from the history",
+          "and": [
+            "Associated media files are deleted",
+            "The operation is logged"
+          ]
+        }
+      ],
+      "location": "/Users/laurent/Projets/NoteCast/bridge/harvester.py"
+    },
+    {
+      "name": "Podcast",
+      "description": "Represents a podcast.",
+      "properties": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Unique identifier for the podcast",
+          "required": true
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "description": "Title of the podcast",
+          "required": true
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "description": "Description of the podcast",
+          "required": true
+        }
+      ],
+      "relationships": [
+        {
+          "targetEntity": "Episode",
+          "type": "has-many",
+          "description": "Podcast has many episodes"
+        }
+      ],
+      "validations": [
+        "Title must not be empty",
+        "Description must not be empty"
+      ],
+      "scenarios": [
+        {
+          "name": "Rebuild feed",
+          "given": "A podcast with episodes",
+          "when": "rebuild_feed() is called",
+          "then": "The podcast feed is regenerated",
+          "and": [
+            "Episode media files are checked for existence",
+            "The feed is written to the specified path",
+            "The operation is logged"
+          ]
+        }
+      ],
+      "location": "/Users/laurent/Projets/NoteCast/bridge/harvester.py"
+    },
+    {
+      "name": "Media",
+      "description": "Represents media associated with an episode.",
+      "properties": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Unique identifier for the media",
+          "required": true
+        },
+        {
+          "name": "path",
+          "type": "string",
+          "description": "File path to the media",
+          "required": true
+        },
+        {
+          "name": "size",
+          "type": "integer",
+          "description": "Size of the media file in bytes",
+          "required": true
+        }
+      ],
+      "relationships": [
+        {
+          "targetEntity": "Episode",
+          "type": "belongs-to",
+          "description": "Media belongs to an episode"
+        }
+      ],
+      "validations": [
+        "Path must be a valid file path",
+        "Size must be a positive integer"
+      ],
+      "scenarios": [
+        {
+          "name": "Check media existence",
+          "given": "An episode with associated media",
+          "when": "rebuild_feed() is called",
+          "then": "The media file is checked for existence",
+          "and": [
+            "The media file size is verified",
+            "The operation is logged"
+          ]
+        }
+      ],
+      "location": "/Users/laurent/Projets/NoteCast/bridge/harvester.py"
+    }
+  ],
+  "tokens": 3258,
+  "duration": 4636
+}

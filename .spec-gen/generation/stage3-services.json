@@ -1,0 +1,229 @@
+{
+  "stage": "services",
+  "success": true,
+  "data": [
+    {
+      "name": "HarvesterService",
+      "purpose": "Manages the lifecycle of podcast episodes, including fetching artifacts, processing them into MP3 files, maintaining a history of episodes, purging old episodes, and rebuilding the podcast feed.",
+      "operations": [
+        {
+          "name": "loadHistory",
+          "description": "Loads the history of processed episodes from a JSON file.",
+          "inputs": [],
+          "outputs": [
+            "history: dict"
+          ],
+          "functionName": "load_history",
+          "scenarios": [
+            {
+              "name": "History file exists",
+              "given": "History file exists at HISTORY_PATH",
+              "when": "loadHistory is called",
+              "then": "History dictionary is returned"
+            },
+            {
+              "name": "History file does not exist",
+              "given": "History file does not exist at HISTORY_PATH",
+              "when": "loadHistory is called",
+              "then": "Empty dictionary is returned"
+            }
+          ]
+        },
+        {
+          "name": "saveHistory",
+          "description": "Saves the history of processed episodes to a JSON file.",
+          "inputs": [
+            "history: dict"
+          ],
+          "outputs": [],
+          "functionName": "save_history",
+          "scenarios": [
+            {
+              "name": "History file is saved successfully",
+              "given": "Valid history dictionary",
+              "when": "saveHistory is called",
+              "then": "History is saved to HISTORY_PATH"
+            }
+          ]
+        },
+        {
+          "name": "convertToMp3",
+          "description": "Converts a WAV file to an MP3 file using FFmpeg.",
+          "inputs": [
+            "wav_path: str",
+            "mp3_path: str"
+          ],
+          "outputs": [],
+          "functionName": "convert_to_mp3",
+          "scenarios": [
+            {
+              "name": "Conversion succeeds",
+              "given": "Valid WAV file path and MP3 file path",
+              "when": "convertToMp3 is called",
+              "then": "MP3 file is created at the specified path"
+            },
+            {
+              "name": "Conversion fails",
+              "given": "Invalid WAV file path or MP3 file path",
+              "when": "convertToMp3 is called",
+              "then": "Exception is raised"
+            }
+          ]
+        },
+        {
+          "name": "fetchArtifacts",
+          "description": "Fetches a list of artifacts from the API.",
+          "inputs": [],
+          "outputs": [
+            "artifacts: list[dict]"
+          ],
+          "functionName": "fetch_artifacts",
+          "scenarios": [
+            {
+              "name": "Artifacts fetched successfully",
+              "given": "API is reachable and returns a list of artifacts",
+              "when": "fetchArtifacts is called",
+              "then": "List of artifacts is returned"
+            },
+            {
+              "name": "API is unreachable",
+              "given": "API is unreachable",
+              "when": "fetchArtifacts is called",
+              "then": "Exception is raised"
+            }
+          ]
+        },
+        {
+          "name": "processArtifact",
+          "description": "Processes an artifact into an MP3 file and updates the history.",
+          "inputs": [
+            "artifact: dict",
+            "history: dict"
+          ],
+          "outputs": [],
+          "functionName": "process_artifact",
+          "scenarios": [
+            {
+              "name": "Artifact processed successfully",
+              "given": "Valid artifact and history dictionary",
+              "when": "processArtifact is called",
+              "then": "Artifact is processed into an MP3 file and history is updated"
+            },
+            {
+              "name": "Artifact processing fails",
+              "given": "Invalid artifact or history dictionary",
+              "when": "processArtifact is called",
+              "then": "Exception is raised"
+            }
+          ]
+        },
+        {
+          "name": "purgeOldEpisodes",
+          "description": "Purges episodes older than RETENTION_DAYS from the history and filesystem.",
+          "inputs": [
+            "history: dict"
+          ],
+          "outputs": [],
+          "functionName": "purge_old_episodes",
+          "scenarios": [
+            {
+              "name": "Old episodes purged successfully",
+              "given": "History dictionary with old episodes",
+              "when": "purgeOldEpisodes is called",
+              "then": "Old episodes are removed from history and filesystem"
+            },
+            {
+              "name": "No old episodes to purge",
+              "given": "History dictionary with no old episodes",
+              "when": "purgeOldEpisodes is called",
+              "then": "No changes are made"
+            }
+          ]
+        },
+        {
+          "name": "rebuildFeed",
+          "description": "Rebuilds the podcast feed XML file from the history of episodes.",
+          "inputs": [
+            "history: dict"
+          ],
+          "outputs": [],
+          "functionName": "rebuild_feed",
+          "scenarios": [
+            {
+              "name": "Feed rebuilt successfully",
+              "given": "Valid history dictionary",
+              "when": "rebuildFeed is called",
+              "then": "Podcast feed XML file is updated"
+            },
+            {
+              "name": "Feed rebuild fails",
+              "given": "Invalid history dictionary",
+              "when": "rebuildFeed is called",
+              "then": "Exception is raised"
+            }
+          ]
+        },
+        {
+          "name": "runCycle",
+          "description": "Runs a complete cycle of fetching artifacts, processing them, purging old episodes, and rebuilding the feed.",
+          "inputs": [
+            "history: dict"
+          ],
+          "outputs": [],
+          "functionName": "run_cycle",
+          "scenarios": [
+            {
+              "name": "Cycle runs successfully",
+              "given": "Valid history dictionary",
+              "when": "runCycle is called",
+              "then": "Artifacts are fetched, processed, old episodes are purged, and feed is rebuilt"
+            },
+            {
+              "name": "Cycle fails",
+              "given": "Invalid history dictionary or API unreachable",
+              "when": "runCycle is called",
+              "then": "Exception is raised"
+            }
+          ]
+        },
+        {
+          "name": "main",
+          "description": "Main entry point that loads history, runs a cycle, and saves history.",
+          "inputs": [],
+          "outputs": [],
+          "functionName": "main",
+          "scenarios": [
+            {
+              "name": "Main runs successfully",
+              "given": "History file exists or can be created",
+              "when": "main is called",
+              "then": "History is loaded, cycle is run, and history is saved"
+            },
+            {
+              "name": "Main fails",
+              "given": "History file cannot be loaded or saved",
+              "when": "main is called",
+              "then": "Exception is raised"
+            }
+          ]
+        }
+      ],
+      "dependencies": [
+        "Podcast",
+        "Episode",
+        "Media"
+      ],
+      "sideEffects": [
+        "Reads and writes to HISTORY_PATH",
+        "Reads and writes to EPISODES_DIR",
+        "Reads and writes to FEED_PATH",
+        "Makes HTTP requests to API_URL",
+        "Executes FFmpeg subprocess for MP3 conversion"
+      ],
+      "domain": "feed",
+      "locationFile": "bridge/harvester.py"
+    }
+  ],
+  "tokens": 19096,
+  "duration": 31040
+}

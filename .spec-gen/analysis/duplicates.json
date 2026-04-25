@@ -1,0 +1,9 @@
+{
+  "cloneGroups": [],
+  "stats": {
+    "totalFunctions": 29,
+    "duplicatedFunctions": 0,
+    "duplicationRatio": 0,
+    "cloneGroupCount": 0
+  }
+}

@@ -1,0 +1,37 @@
+services:
+  notecast-bridge:
+    build: ./bridge
+    restart: unless-stopped
+    container_name: notecast-bridge
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./public:/public
+      - ./bridge/history.json:/app/history.json
+      - ./auth:/root/.notebooklm
+    environment:
+      - BASE_URL
+      - POLL_INTERVAL
+      - RETENTION_DAYS
+      - BRIDGE_PORT=8080
+      - BRIDGE_API_KEY
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./public:/srv
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      - CADDY_DOMAIN
+    depends_on:
+      - notecast-bridge
+
+volumes:
+  caddy_data:
+  caddy_config:

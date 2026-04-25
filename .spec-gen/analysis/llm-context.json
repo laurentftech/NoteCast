@@ -1,0 +1,3040 @@
+{
+  "phase1_survey": {
+    "purpose": "Initial project categorization",
+    "files": [
+      {
+        "path": "repo-structure.json",
+        "tokens": 2000
+      }
+    ],
+    "totalTokens": 2000
+  },
+  "phase2_deep": {
+    "purpose": "Core entity and logic extraction",
+    "files": [
+      {
+        "path": "example/app.py",
+        "content": "# Google NotebookLM REST API wrapper\n# Namhyeon Go <gnh1201@catswords.re.kr>\n# https://github.com/gnh1201/notebooklm-rest-api\nimport os\nimport uuid\nimport tempfile\nfrom typing import Any, Optional, Literal, Dict\n\nfrom fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends\nfrom fastapi.responses import FileResponse\nfrom pydantic import BaseModel\n\nfrom notebooklm import NotebookLMClient, RPCError  # notebooklm-py :contentReference[oaicite:2]{index=2}\n\n\n# ----------------------------\n# Config / Security\n# ----------------------------\nAPI_KEY = os.environ.get(\"NOTEBOOKLM_REST_API_KEY\", \"\")  # set this in production\nAUTH_STORAGE_PATH = os.environ.get(\"NOTEBOOKLM_STORAGE_PATH\")  # optional override\n\n\ndef require_api_key(x_api_key: Optional[str] = None):\n    # Minimal API-key gate. Put this behind a real gateway (Cloudflare, Nginx, etc.) for production.\n    if API_KEY:\n        # FastAPI header parsing without extra imports (keep simple):\n        # Prefer: from fastapi import Header; def require_api_key(x_api_key: str = Header(None)) ...\n        # but we keep it minimal and rely on query param fallback too.\n        if x_api_key != API_KEY:\n            raise HTTPException(status_code=401, detail=\"Invalid API key\")\n\n\nasync def get_client() -> NotebookLMClient:\n    \"\"\"\n    Creates a client using notebooklm-py's supported auth precedence:\n    - explicit path to from_storage()\n    - NOTEBOOKLM_AUTH_JSON\n    - NOTEBOOKLM_HOME/storage_state.json\n    - ~/.notebooklm/storage_state.json\n    :contentReference[oaicite:3]{index=3}\n    \"\"\"\n    try:\n        if AUTH_STORAGE_PATH:\n            return await NotebookLMClient.from_storage(AUTH_STORAGE_PATH)\n        return await NotebookLMClient.from_storage()\n    except Exception as e:\n        raise HTTPException(status_code=500, detail=f\"Failed to initialize NotebookLM client: {e}\")\n\n\ndef map_rpc_error(e: RPCError) -> HTTPException:\n    # notebooklm-py raises RPCError for API failures :contentReference[oaicite:4]{index=4}\n    msg = str(e)\n    if \"401\" in msg or \"403\" in msg or \"auth\" in msg.lower():\n        return HTTPException(status_code=401, detail=msg)\n    if \"rate\" in msg.lower() or \"429\" in msg:\n        return HTTPException(status_code=429, detail=msg)\n    return HTTPException(status_code=502, detail=msg)\n\n\n# ----------------------------\n# Models\n# ----------------------------\nclass NotebookCreateReq(BaseModel):\n    title: str\n\n\nclass NotebookRenameReq(BaseModel):\n    new_title: str\n\n\nclass SourceAddUrlReq(BaseModel):\n    url: str\n    wait: bool = True\n\n\nclass SourceAddTextReq(BaseModel):\n    title: str\n    content: str\n\n\nclass SourceAddYoutubeReq(BaseModel):\n    url: str\n    wait: bool = True\n\n\nclass ChatAskReq(BaseModel):\n    question: str\n    # optional persona fields could be added if you want\n\n\nclass ArtifactGenerateReq(BaseModel):\n    # A simple unified generator:\n    # audio/video/report/quiz/flashcards/slide_deck/infographic/data_table/mind_map\n    type: Literal[\n        \"audio\",\n        \"video\",\n        \"report\",\n        \"quiz\",\n        \"flashcards\",\n        \"slide_deck\",\n        \"infographic\",\n        \"data_table\",\n        \"mind_map\",\n    ]\n    # Options are passed through as-is to the underlying generate_* calls where applicable.\n    # (The library supports many per-type options; keep this generic.)\n    options: Dict[str, Any] = {}\n\n\nclass TaskPollResp(BaseModel):\n    ok: bool\n    status: Any\n\n\n# ----------------------------\n# App\n# ----------------------------\napp = FastAPI(title=\"NotebookLM REST API (powered by notebooklm-py)\")\n\n\n@app.get(\"/health\")\nasync def health():\n    return {\"ok\": True}\n\n\n# ----------------------------\n# Notebooks\n# ----------------------------\n@app.get(\"/v1/notebooks\")\nasync def list_notebooks():\n    client = await get_client()\n    async with client:\n        try:\n            nbs = await client.notebooks.list()\n            return {\"ok\": True, \"items\": [nb.model_dump() if hasattr(nb, \"model_dump\") else nb.__dict__ for nb in nbs]}\n        except RPCError as e:\n            raise map_rpc_error(e)\n\n\n@app.post(\"/v1/notebooks\")\nasync def create_notebook(req: NotebookCreateReq):\n    client = await get_client()\n    async with client:\n        try:\n            nb = await client.notebooks.create(req.title)\n            return {\"ok\": True, \"notebook\": nb.model_dump() if hasattr(nb, \"model_dump\") else nb.__dict__}\n        except RPCError as e:\n            raise map_rpc_error(e)\n\n\n@app.get(\"/v1/notebooks/{notebook_id}\")\nasync def get_notebook(notebook_id: str):\n    client = await get_client()\n    async with client:\n        try:\n            nb = await client.notebooks.get(notebook_id)\n            return {\"ok\": True, \"notebook\": nb.model_dump() if hasattr(nb, \"model_dump\") else nb.__dict__}\n        except RPCError as e:\n            raise map_rpc_error(e)\n\n\n@app.delete(\"/v1/notebooks/{notebook_id}\")\nasync def delete_notebook(notebook_id: str):\n    client = await get_client()\n    async with client:\n        try:\n            ok = await client.notebooks.delete(notebook_id)\n            return {\"ok\": True, \"deleted\": bool(ok)}\n        except RPCError as e:\n            raise map_rpc_error(e)\n\n\n@app.patch(\"/v1/notebooks/{notebook_id}/rename\")\nasync def rename_notebook(notebook_id: str, req: NotebookRenameReq):\n    client = await get_client()\n    async with client:\n        try:\n            nb = await client.notebooks.rename(notebook_id, req.new_title)\n            return {\"ok\": True, \"notebook\": nb.model_dump() if hasattr(nb, \"model_dump\") else nb.__dict__}\n        except RPCError as e:\n            raise map_rpc_error(e)\n\n\n@app.get(\"/v1/notebooks/{notebook_id}/summary\")\nasync def get_notebook_summary(notebook_id: str):\n    client = await get_client()\n    async with client:\n        try:\n            summary = await client.notebooks.get_summary(notebook_id)\n            return {\"ok\": True, \"summary\": summary}\n        except RPCError as e:\n            raise map_rpc_error(e)\n\n\n@app.get(\"/v1/notebooks/{notebook_id}/description\")\nasync def get_notebook_description(notebook_id: str):\n    client = await get_client()\n    async with client:\n        try:\n            desc = await client.notebooks.get_description(notebook_id)\n            return {\"ok\": True, \"description\": desc.model_dump() if hasattr(desc, \"model_dump\") else desc.__dict__}\n        except RPCError as e:\n            raise map_rpc_error(e)\n\n\n# ----------------------------\n# Sources\n# ----------------------------\n@app.get(\"/v1/notebooks/{notebook_id}/sources\")\nasync def list_sources(notebook_id: str):\n    client = await get_client()\n    async with client:\n        try:\n            items = await client.sources.list(notebook_id)\n            return {\"ok\": True, \"items\": [s.model_dump() if hasattr(s, \"model_dump\") else s.__dict__ for s in items]}\n        except RPCError as e:\n            raise map_rpc_error(e)\n\n\n@app.post(\"/v1/notebooks/{notebook_id}/sources/url\")\nasync def add_source_url(notebook_id: str, req: SourceAddUrlReq):\n    client = await get_client()\n    async with client:\n        try:\n            src = await client.sources.add_url(notebook_id, req.url, wait=req.wait)\n            return {\"ok\": True, \"source\": src.model_dump() if hasattr(src, \"model_dump\") else src.__dict__}\n        except TypeError:\n            # some versions may not accept wait=; fall back\n            try:\n                src = await client.sources.add_url(notebook_id, req.url)\n                return {\"ok\": True, \"source\": src.model_dump() if hasattr(src, \"model_dump\") else src.__dict__}\n            except RPCError as e:\n                raise map_rpc_error(e)\n        except RPCError as e:\n            raise map_rpc_error(e)\n\n\n@app.post(\"/v1/notebooks/{notebook_id}/sources/youtube\")\nasync def add_source_youtube(notebook_id: str, req: SourceAddYoutubeReq):\n    client = await get_client()\n    async with client:\n        try:\n            src = await client.sources.add_youtube(notebook_id, req.url, wait=req.wait)\n            return {\"ok\": True, \"source\": src.model_dump() if hasattr(src, \"model_dump\") else src.__dict__}\n        except TypeError:\n            try:\n                src = await client.sources.add_youtube(notebook_id, req.url)\n                return {\"ok\": True, \"source\": src.model_dump() if hasattr(src, \"model_dump\") else src.__dict__}\n            except RPCError as e:\n                raise map_rpc_error(e)\n        except RPCError as e:\n            raise map_rpc_error(e)\n\n\n@app.post(\"/v1/notebooks/{notebook_id}/sources/text\")\nasync def add_source_text(notebook_id: str, req: SourceAddTextReq):\n    client = await get_client()\n    async with client:\n        try:\n            src = await client.sources.add_text(notebook_id, req.title, req.content)\n            return {\"ok\": True, \"source\": src.model_dump() if hasattr(src, \"model_dump\") else src.__dict__}\n        except RPCError as e:\n            raise map_rpc_error(e)\n\n\n@app.post(\"/v1/notebooks/{notebook_id}/sources/file\")\nasync def add_source_file(\n    notebook_id: str,\n    upload: UploadFile = File(...),\n    mime_type: Optional[str] = Form(None),\n):\n    # Save to temp file first\n    suffix = os.path.splitext(upload.filename or \"\")[1] or \".bin\"\n    tmp_path = os.path.join(tempfile.gettempdir(), f\"nb_{uuid.uuid4().hex}{suffix}\")\n    with open(tmp_path, \"wb\") as f:\n        f.write(await upload.read())\n\n    client = await get_client()\n    async with client:\n        try:\n            src = await client.sources.add_file(notebook_id, tmp_path, mime_type=mime_type)\n            return {\"ok\": True, \"source\": src.model_dump() if hasattr(src, \"model_dump\") else src.__dict__}\n        except RPCError as e:\n            raise map_rpc_error(e)\n        finally:\n            try:\n                os.remove(tmp_path)\n            except OSError:\n                pass\n\n\n@app.get(\"/v1/notebooks/{notebook_id}/sources/{source_id}/fulltext\")\nasync def get_source_fulltext(notebook_id: str, source_id: str):\n    client = await get_client()\n    async with client:\n        try:\n            ft = await client.sources.get_fu",
+        "tokens": 4514
+      },
+      {
+        "path": "ARCHITECTURE.md",
+        "content": "# Architecture Overview\n\n> Generated by `spec-gen analyze` on 2026-04-24.\n> Re-run `spec-gen analyze` to refresh.\n\n## Summary\n\n| Metric | Value |\n|--------|-------|\n| Files | 7 |\n| Module clusters | 2 |\n| Dependency edges | 0 |\n\n## Module Clusters\n\nClusters are groups of tightly coupled files detected by static dependency analysis.\n\n| Cluster | Role | Files | Depends on |\n|---------|------|-------|------------|\n| **bridge** | `API layer` | 4 | — |\n| **(root)** | `internal` | 3 | — |\n\n### Key files per cluster\n\n**bridge** (`API layer`)\n- `bridge/harvester.py`\n\n## Entry Points\n\nFunctions with no internal callers — the public-facing roots of the codebase.\n\n- `main` — `/Users/laurent/Projets/NoteCast/bridge/harvester.py` (Python)\n",
+        "tokens": 184
+      },
+      {
+        "path": "Caddyfile",
+        "content": "{$CADDY_DOMAIN} {\n    root * /srv\n    file_server\n    encode gzip\n}",
+        "tokens": 17
+      }
+    ],
+    "totalTokens": 4715
+  },
+  "phase3_validation": {
+    "purpose": "Verification samples",
+    "files": [],
+    "totalTokens": 0
+  },
+  "signatures": [
+    {
+      "path": "example/app.py",
+      "language": "Python",
+      "entries": [
+        {
+          "kind": "const",
+          "name": "API_KEY",
+          "signature": "API_KEY = os.environ.get(\"NOTEBOOKLM_REST_API_KEY\", \"\") # set this in productio",
+          "docstring": "----------------------------"
+        },
+        {
+          "kind": "const",
+          "name": "AUTH_STORAGE_PATH",
+          "signature": "AUTH_STORAGE_PATH = os.environ.get(\"NOTEBOOKLM_STORAGE_PATH\") # optional overri"
+        },
+        {
+          "kind": "function",
+          "name": "require_api_key",
+          "signature": "def require_api_key(x_api_key: Optional[str] = None)"
+        },
+        {
+          "kind": "function",
+          "name": "get_client",
+          "signature": "async def get_client() -> NotebookLMClient",
+          "docstring": "Creates a client using notebooklm-py's supported auth precedence:"
+        },
+        {
+          "kind": "function",
+          "name": "map_rpc_error",
+          "signature": "def map_rpc_error(e: RPCError) -> HTTPException"
+        },
+        {
+          "kind": "class",
+          "name": "NotebookCreateReq",
+          "signature": "class NotebookCreateReq(BaseModel):"
+        },
+        {
+          "kind": "class",
+          "name": "NotebookRenameReq",
+          "signature": "class NotebookRenameReq(BaseModel):"
+        },
+        {
+          "kind": "class",
+          "name": "SourceAddUrlReq",
+          "signature": "class SourceAddUrlReq(BaseModel):"
+        },
+        {
+          "kind": "class",
+          "name": "SourceAddTextReq",
+          "signature": "class SourceAddTextReq(BaseModel):"
+        },
+        {
+          "kind": "class",
+          "name": "SourceAddYoutubeReq",
+          "signature": "class SourceAddYoutubeReq(BaseModel):"
+        },
+        {
+          "kind": "class",
+          "name": "ChatAskReq",
+          "signature": "class ChatAskReq(BaseModel):"
+        },
+        {
+          "kind": "class",
+          "name": "ArtifactGenerateReq",
+          "signature": "class ArtifactGenerateReq(BaseModel):"
+        },
+        {
+          "kind": "class",
+          "name": "TaskPollResp",
+          "signature": "class TaskPollResp(BaseModel):"
+        },
+        {
+          "kind": "function",
+          "name": "health",
+          "signature": "async def health()",
+          "decorator": "@app.get(\"/health\")"
+        },
+        {
+          "kind": "function",
+          "name": "list_notebooks",
+          "signature": "async def list_notebooks()",
+          "decorator": "@app.get(\"/v1/notebooks\")"
+        },
+        {
+          "kind": "function",
+          "name": "create_notebook",
+          "signature": "async def create_notebook(req: NotebookCreateReq)",
+          "decorator": "@app.post(\"/v1/notebooks\")"
+        },
+        {
+          "kind": "function",
+          "name": "get_notebook",
+          "signature": "async def get_notebook(notebook_id: str)",
+          "decorator": "@app.get(\"/v1/notebooks/{notebook_id}\")"
+        },
+        {
+          "kind": "function",
+          "name": "delete_notebook",
+          "signature": "async def delete_notebook(notebook_id: str)",
+          "decorator": "@app.delete(\"/v1/notebooks/{notebook_id}\")"
+        },
+        {
+          "kind": "function",
+          "name": "rename_notebook",
+          "signature": "async def rename_notebook(notebook_id: str, req: NotebookRenameReq)",
+          "decorator": "@app.patch(\"/v1/notebooks/{notebook_id}/rename\")"
+        },
+        {
+          "kind": "function",
+          "name": "get_notebook_summary",
+          "signature": "async def get_notebook_summary(notebook_id: str)",
+          "decorator": "@app.get(\"/v1/notebooks/{notebook_id}/summary\")"
+        },
+        {
+          "kind": "function",
+          "name": "get_notebook_description",
+          "signature": "async def get_notebook_description(notebook_id: str)",
+          "decorator": "@app.get(\"/v1/notebooks/{notebook_id}/description\")"
+        },
+        {
+          "kind": "function",
+          "name": "list_sources",
+          "signature": "async def list_sources(notebook_id: str)",
+          "decorator": "@app.get(\"/v1/notebooks/{notebook_id}/sources\")"
+        },
+        {
+          "kind": "function",
+          "name": "add_source_url",
+          "signature": "async def add_source_url(notebook_id: str, req: SourceAddUrlReq)",
+          "decorator": "@app.post(\"/v1/notebooks/{notebook_id}/sources/url\")"
+        },
+        {
+          "kind": "function",
+          "name": "add_source_youtube",
+          "signature": "async def add_source_youtube(notebook_id: str, req: SourceAddYoutubeReq)",
+          "decorator": "@app.post(\"/v1/notebooks/{notebook_id}/sources/youtube\")"
+        },
+        {
+          "kind": "function",
+          "name": "add_source_text",
+          "signature": "async def add_source_text(notebook_id: str, req: SourceAddTextReq)",
+          "decorator": "@app.post(\"/v1/notebooks/{notebook_id}/sources/text\")"
+        }
+      ]
+    },
+    {
+      "path": "bridge/harvester.py",
+      "language": "Python",
+      "entries": [
+        {
+          "kind": "const",
+          "name": "BASE_URL",
+          "signature": "BASE_URL = os.getenv('BASE_URL')",
+          "docstring": "Configuration from environment variables with defaults"
+        },
+        {
+          "kind": "const",
+          "name": "POLL_INTERVAL",
+          "signature": "POLL_INTERVAL = int(os.getenv('POLL_INTERVAL', '300'))"
+        },
+        {
+          "kind": "const",
+          "name": "RETENTION_DAYS",
+          "signature": "RETENTION_DAYS = int(os.getenv('RETENTION_DAYS', '14'))"
+        },
+        {
+          "kind": "const",
+          "name": "PUBLIC_DIR",
+          "signature": "PUBLIC_DIR = Path('/public')",
+          "docstring": "Paths"
+        },
+        {
+          "kind": "const",
+          "name": "EPISODES_DIR",
+          "signature": "EPISODES_DIR = PUBLIC_DIR / 'episodes'"
+        },
+        {
+          "kind": "const",
+          "name": "HISTORY_FILE",
+          "signature": "HISTORY_FILE = Path('/app/history.json')"
+        },
+        {
+          "kind": "const",
+          "name": "FEED_FILE",
+          "signature": "FEED_FILE = PUBLIC_DIR / 'feed.xml'"
+        },
+        {
+          "kind": "function",
+          "name": "load_history",
+          "signature": "def load_history()"
+        },
+        {
+          "kind": "function",
+          "name": "save_history",
+          "signature": "def save_history(history)"
+        },
+        {
+          "kind": "function",
+          "name": "download_wav_bytes",
+          "signature": "def download_wav_bytes(artifact_id, wav_data)",
+          "docstring": "Save WAV bytes to a temporary file."
+        },
+        {
+          "kind": "function",
+          "name": "convert_to_mp3",
+          "signature": "def convert_to_mp3(wav_path, mp3_path)",
+          "docstring": "Convert WAV to MP3 using ffmpeg."
+        },
+        {
+          "kind": "function",
+          "name": "rebuild_feed",
+          "signature": "def rebuild_feed(history)",
+          "docstring": "Rebuild the RSS feed from the history."
+        },
+        {
+          "kind": "function",
+          "name": "purge_old_episodes",
+          "signature": "def purge_old_episodes(history)",
+          "docstring": "Remove episodes older than RETENTION_DAYS."
+        },
+        {
+          "kind": "function",
+          "name": "main_async",
+          "signature": "async def main_async()"
+        },
+        {
+          "kind": "function",
+          "name": "main",
+          "signature": "def main()",
+          "docstring": "Entry point for the script."
+        }
+      ]
+    }
+  ],
+  "callGraph": {
+    "nodes": [
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::require_api_key",
+        "name": "require_api_key",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 720,
+        "endIndex": 1240,
+        "fanIn": 0,
+        "fanOut": 1,
+        "signature": "def require_api_key(x_api_key: Optional[str] = None)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "name": "get_client",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": true,
+        "language": "Python",
+        "startIndex": 1243,
+        "endIndex": 1852,
+        "fanIn": 20,
+        "fanOut": 2,
+        "docstring": "Creates a client using notebooklm-py's supported auth precedence:",
+        "signature": "async def get_client() -> NotebookLMClient"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "name": "map_rpc_error",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 1855,
+        "endIndex": 2289,
+        "fanIn": 20,
+        "fanOut": 2,
+        "signature": "def map_rpc_error(e: RPCError) -> HTTPException"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::health",
+        "name": "health",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 3552,
+        "endIndex": 3615,
+        "fanIn": 0,
+        "fanOut": 1,
+        "signature": "@app.get(\"/health\") async def health()"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::list_notebooks",
+        "name": "list_notebooks",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 3692,
+        "endIndex": 4046,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.get(\"/v1/notebooks\") async def list_notebooks()"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::create_notebook",
+        "name": "create_notebook",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 4049,
+        "endIndex": 4424,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.post(\"/v1/notebooks\") async def create_notebook(req: NotebookCreateReq)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::get_notebook",
+        "name": "get_notebook",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 4427,
+        "endIndex": 4805,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.get(\"/v1/notebooks/{notebook_id}\") async def get_notebook(notebook_id: str)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::delete_notebook",
+        "name": "delete_notebook",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 4808,
+        "endIndex": 5141,
+        "fanIn": 0,
+        "fanOut": 2,
+        "signature": "@app.delete(\"/v1/notebooks/{notebook_id}\") async def delete_notebook(notebook_id: str)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::rename_notebook",
+        "name": "rename_notebook",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 5144,
+        "endIndex": 5576,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.patch(\"/v1/notebooks/{notebook_id}/rename\") async def rename_notebook(notebook_id: str, req: NotebookRenameReq)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::get_notebook_summary",
+        "name": "get_notebook_summary",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 5579,
+        "endIndex": 5931,
+        "fanIn": 0,
+        "fanOut": 3,
+        "signature": "@app.get(\"/v1/notebooks/{notebook_id}/summary\") async def get_notebook_summary(notebook_id: str)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::get_notebook_description",
+        "name": "get_notebook_description",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 5934,
+        "endIndex": 6359,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.get(\"/v1/notebooks/{notebook_id}/description\") async def get_notebook_description(notebook_id: str)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::list_sources",
+        "name": "list_sources",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 6434,
+        "endIndex": 6833,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.get(\"/v1/notebooks/{notebook_id}/sources\") async def list_sources(notebook_id: str)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_url",
+        "name": "add_source_url",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 6836,
+        "endIndex": 7640,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.post(\"/v1/notebooks/{notebook_id}/sources/url\") async def add_source_url(notebook_id: str, req: SourceAddUrlReq)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_youtube",
+        "name": "add_source_youtube",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 7643,
+        "endIndex": 8407,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.post(\"/v1/notebooks/{notebook_id}/sources/youtube\") async def add_source_youtube(notebook_id: str, req: SourceAddYoutubeReq)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_text",
+        "name": "add_source_text",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 8410,
+        "endIndex": 8857,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.post(\"/v1/notebooks/{notebook_id}/sources/text\") async def add_source_text(notebook_id: str, req: SourceAddTextReq)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_file",
+        "name": "add_source_file",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 8860,
+        "endIndex": 9751,
+        "fanIn": 0,
+        "fanOut": 10,
+        "signature": "@app.post(\"/v1/notebooks/{notebook_id}/sources/file\") async def add_source_file( notebook_id: str, upload: UploadFile = File(...), mime_type: Optional[str] = Form(None), )"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::get_source_fulltext",
+        "name": "get_source_fulltext",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 9754,
+        "endIndex": 10202,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.get(\"/v1/notebooks/{notebook_id}/sources/{source_id}/fulltext\") async def get_source_fulltext(notebook_id: str, source_id: str)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::get_source_guide",
+        "name": "get_source_guide",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 10205,
+        "endIndex": 10588,
+        "fanIn": 0,
+        "fanOut": 3,
+        "signature": "@app.get(\"/v1/notebooks/{notebook_id}/sources/{source_id}/guide\") async def get_source_guide(notebook_id: str, source_id: str)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::delete_source",
+        "name": "delete_source",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 10591,
+        "endIndex": 10967,
+        "fanIn": 0,
+        "fanOut": 2,
+        "signature": "@app.delete(\"/v1/notebooks/{notebook_id}/sources/{source_id}\") async def delete_source(notebook_id: str, source_id: str)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::chat_ask",
+        "name": "chat_ask",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 11039,
+        "endIndex": 11658,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.post(\"/v1/notebooks/{notebook_id}/chat/ask\") async def chat_ask(notebook_id: str, req: ChatAskReq)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::list_artifacts",
+        "name": "list_artifacts",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 11770,
+        "endIndex": 12268,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.get(\"/v1/notebooks/{notebook_id}/artifacts\") async def list_artifacts(notebook_id: str, type: Optional[str] = None)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::generate_artifact",
+        "name": "generate_artifact",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 12271,
+        "endIndex": 14220,
+        "fanIn": 0,
+        "fanOut": 5,
+        "signature": "@app.post(\"/v1/notebooks/{notebook_id}/artifacts/generate\") async def generate_artifact(notebook_id: str, req: ArtifactGenerateReq)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::poll_task",
+        "name": "poll_task",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 14223,
+        "endIndex": 14873,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.get(\"/v1/notebooks/{notebook_id}/artifacts/tasks/{task_id}\") async def poll_task(notebook_id: str, task_id: str, wait: bool = False)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::download_artifact",
+        "name": "download_artifact",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 14876,
+        "endIndex": 18054,
+        "fanIn": 0,
+        "fanOut": 7,
+        "signature": "@app.get(\"/v1/notebooks/{notebook_id}/artifacts/download\") async def download_artifact( notebook_id: str, type: Literal[ \"audio\", \"video\", \"infographic\", \"slide_deck\", \"report\", \"mind_map\", \"data_table\", \"quiz\", \"flashcards\", ], artifact_id: Optional[str] = None, output_format: Optional[Literal[\"jso"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::load_history",
+        "name": "load_history",
+        "filePath": "/Users/laurent/Projets/NoteCast/bridge/harvester.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 1018,
+        "endIndex": 1156,
+        "fanIn": 1,
+        "fanOut": 2,
+        "signature": "def load_history()"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::save_history",
+        "name": "save_history",
+        "filePath": "/Users/laurent/Projets/NoteCast/bridge/harvester.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 1158,
+        "endIndex": 1263,
+        "fanIn": 1,
+        "fanOut": 0,
+        "signature": "def save_history(history)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::download_wav_bytes",
+        "name": "download_wav_bytes",
+        "filePath": "/Users/laurent/Projets/NoteCast/bridge/harvester.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 1265,
+        "endIndex": 1630,
+        "fanIn": 0,
+        "fanOut": 2,
+        "docstring": "Save WAV bytes to a temporary file.",
+        "signature": "def download_wav_bytes(artifact_id, wav_data)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::convert_to_mp3",
+        "name": "convert_to_mp3",
+        "filePath": "/Users/laurent/Projets/NoteCast/bridge/harvester.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 1632,
+        "endIndex": 2299,
+        "fanIn": 1,
+        "fanOut": 1,
+        "docstring": "Convert WAV to MP3 using ffmpeg.",
+        "signature": "def convert_to_mp3(wav_path, mp3_path)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::rebuild_feed",
+        "name": "rebuild_feed",
+        "filePath": "/Users/laurent/Projets/NoteCast/bridge/harvester.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 2301,
+        "endIndex": 3500,
+        "fanIn": 1,
+        "fanOut": 10,
+        "docstring": "Rebuild the RSS feed from the history.",
+        "signature": "def rebuild_feed(history)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::purge_old_episodes",
+        "name": "purge_old_episodes",
+        "filePath": "/Users/laurent/Projets/NoteCast/bridge/harvester.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 3502,
+        "endIndex": 4380,
+        "fanIn": 1,
+        "fanOut": 9,
+        "docstring": "Remove episodes older than RETENTION_DAYS.",
+        "signature": "def purge_old_episodes(history)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "name": "main_async",
+        "filePath": "/Users/laurent/Projets/NoteCast/bridge/harvester.py",
+        "isAsync": true,
+        "language": "Python",
+        "startIndex": 4382,
+        "endIndex": 10480,
+        "fanIn": 1,
+        "fanOut": 15,
+        "signature": "async def main_async()"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main",
+        "name": "main",
+        "filePath": "/Users/laurent/Projets/NoteCast/bridge/harvester.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 10482,
+        "endIndex": 10561,
+        "fanIn": 0,
+        "fanOut": 2,
+        "docstring": "Entry point for the script.",
+        "signature": "def main()"
+      },
+      {
+        "id": "external::HTTPException",
+        "name": "HTTPException",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 5,
+        "fanOut": 0
+      },
+      {
+        "id": "external::File",
+        "name": "File",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "filesystem",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::Form",
+        "name": "Form",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::FileResponse",
+        "name": "FileResponse",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::NotebookLMClient.from_storage",
+        "name": "NotebookLMClient.from_storage",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 2,
+        "fanOut": 0
+      },
+      {
+        "id": "external::msg.lower",
+        "name": "msg.lower",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::app.get",
+        "name": "app.get",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 11,
+        "fanOut": 0
+      },
+      {
+        "id": "external::nb.model_dump",
+        "name": "nb.model_dump",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 4,
+        "fanOut": 0
+      },
+      {
+        "id": "external::app.post",
+        "name": "app.post",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 7,
+        "fanOut": 0
+      },
+      {
+        "id": "external::app.patch",
+        "name": "app.patch",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::desc.model_dump",
+        "name": "desc.model_dump",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::s.model_dump",
+        "name": "s.model_dump",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::src.model_dump",
+        "name": "src.model_dump",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 4,
+        "fanOut": 0
+      },
+      {
+        "id": "external::tempfile.gettempdir",
+        "name": "tempfile.gettempdir",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "stdlib",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 2,
+        "fanOut": 0
+      },
+      {
+        "id": "external::uuid.uuid4",
+        "name": "uuid.uuid4",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "stdlib",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 2,
+        "fanOut": 0
+      },
+      {
+        "id": "external::f.write",
+        "name": "f.write",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 3,
+        "fanOut": 0
+      },
+      {
+        "id": "external::upload.read",
+        "name": "upload.read",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::ft.model_dump",
+        "name": "ft.model_dump",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::result.model_dump",
+        "name": "result.model_dump",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "stdlib",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::a.model_dump",
+        "name": "a.model_dump",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::status.model_dump",
+        "name": "status.model_dump",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 2,
+        "fanOut": 0
+      },
+      {
+        "id": "external::Path",
+        "name": "Path",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "filesystem",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 2,
+        "fanOut": 0
+      },
+      {
+        "id": "external::Podcast",
+        "name": "Podcast",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::Episode",
+        "name": "Episode",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::Media",
+        "name": "Media",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::timedelta",
+        "name": "timedelta",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::HISTORY_FILE.exists",
+        "name": "HISTORY_FILE.exists",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::json.load",
+        "name": "json.load",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "stdlib",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::subprocess.run",
+        "name": "subprocess.run",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "stdlib",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::history.items",
+        "name": "history.items",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 2,
+        "fanOut": 0
+      },
+      {
+        "id": "external::data.get",
+        "name": "data.get",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "stdlib",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 2,
+        "fanOut": 0
+      },
+      {
+        "id": "external::datetime.fromisoformat",
+        "name": "datetime.fromisoformat",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 2,
+        "fanOut": 0
+      },
+      {
+        "id": "external::datetime.now",
+        "name": "datetime.now",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 3,
+        "fanOut": 0
+      },
+      {
+        "id": "external::podcast.add_episode",
+        "name": "podcast.add_episode",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::podcast.rss_file",
+        "name": "podcast.rss_file",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::logger.info",
+        "name": "logger.info",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 3,
+        "fanOut": 0
+      },
+      {
+        "id": "external::history.pop",
+        "name": "history.pop",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::mp3_path.exists",
+        "name": "mp3_path.exists",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::mp3_path.unlink",
+        "name": "mp3_path.unlink",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::logger.debug",
+        "name": "logger.debug",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::artifact_type.lower",
+        "name": "artifact_type.lower",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::logger.warning",
+        "name": "logger.warning",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::temp_path.unlink",
+        "name": "temp_path.unlink",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::asyncio.sleep",
+        "name": "asyncio.sleep",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      {
+        "id": "external::asyncio.run",
+        "name": "asyncio.run",
+        "filePath": "external",
+        "isExternal": true,
+        "externalKind": "unknown",
+        "isAsync": false,
+        "language": "external",
+        "startIndex": 0,
+        "endIndex": 0,
+        "fanIn": 1,
+        "fanOut": 0
+      }
+    ],
+    "edges": [
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::require_api_key",
+        "calleeId": "external::HTTPException",
+        "calleeName": "HTTPException",
+        "line": 30,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "calleeId": "external::HTTPException",
+        "calleeName": "HTTPException",
+        "line": 47,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeId": "external::HTTPException",
+        "calleeName": "HTTPException",
+        "line": 54,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeId": "external::HTTPException",
+        "calleeName": "HTTPException",
+        "line": 56,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeId": "external::HTTPException",
+        "calleeName": "HTTPException",
+        "line": 57,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::list_notebooks",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "calleeName": "get_client",
+        "line": 131,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::list_notebooks",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeName": "map_rpc_error",
+        "line": 137,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::create_notebook",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "calleeName": "get_client",
+        "line": 142,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::create_notebook",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeName": "map_rpc_error",
+        "line": 148,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::get_notebook",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "calleeName": "get_client",
+        "line": 153,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::get_notebook",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeName": "map_rpc_error",
+        "line": 159,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::delete_notebook",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "calleeName": "get_client",
+        "line": 164,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::delete_notebook",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeName": "map_rpc_error",
+        "line": 170,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::rename_notebook",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "calleeName": "get_client",
+        "line": 175,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::rename_notebook",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeName": "map_rpc_error",
+        "line": 181,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::get_notebook_summary",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "calleeName": "get_client",
+        "line": 186,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::get_notebook_summary",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeName": "map_rpc_error",
+        "line": 192,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::get_notebook_description",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "calleeName": "get_client",
+        "line": 197,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::get_notebook_description",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeName": "map_rpc_error",
+        "line": 203,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::list_sources",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "calleeName": "get_client",
+        "line": 211,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::list_sources",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeName": "map_rpc_error",
+        "line": 217,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_url",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "calleeName": "get_client",
+        "line": 222,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_url",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeName": "map_rpc_error",
+        "line": 233,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_url",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeName": "map_rpc_error",
+        "line": 235,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_youtube",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "calleeName": "get_client",
+        "line": 240,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_youtube",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeName": "map_rpc_error",
+        "line": 250,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_youtube",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeName": "map_rpc_error",
+        "line": 252,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_text",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "calleeName": "get_client",
+        "line": 257,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_text",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeName": "map_rpc_error",
+        "line": 263,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_file",
+        "calleeId": "external::File",
+        "calleeName": "File",
+        "line": 269,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_file",
+        "calleeId": "external::Form",
+        "calleeName": "Form",
+        "line": 270,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_file",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "calleeName": "get_client",
+        "line": 278,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_file",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeName": "map_rpc_error",
+        "line": 284,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::get_source_fulltext",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "calleeName": "get_client",
+        "line": 294,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::get_source_fulltext",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeName": "map_rpc_error",
+        "line": 300,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::get_source_guide",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "calleeName": "get_client",
+        "line": 305,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::get_source_guide",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeName": "map_rpc_error",
+        "line": 311,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::delete_source",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "calleeName": "get_client",
+        "line": 316,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::delete_source",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeName": "map_rpc_error",
+        "line": 322,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::chat_ask",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "calleeName": "get_client",
+        "line": 330,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::chat_ask",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeName": "map_rpc_error",
+        "line": 339,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::list_artifacts",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "calleeName": "get_client",
+        "line": 347,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::list_artifacts",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeName": "map_rpc_error",
+        "line": 353,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::generate_artifact",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "calleeName": "get_client",
+        "line": 358,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::generate_artifact",
+        "calleeId": "external::HTTPException",
+        "calleeName": "HTTPException",
+        "line": 385,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::generate_artifact",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeName": "map_rpc_error",
+        "line": 391,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::poll_task",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "calleeName": "get_client",
+        "line": 396,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::poll_task",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeName": "map_rpc_error",
+        "line": 407,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::download_artifact",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "calleeName": "get_client",
+        "line": 444,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::download_artifact",
+        "calleeId": "external::HTTPException",
+        "calleeName": "HTTPException",
+        "line": 470,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::download_artifact",
+        "calleeId": "external::FileResponse",
+        "calleeName": "FileResponse",
+        "line": 473,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::download_artifact",
+        "calleeId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeName": "map_rpc_error",
+        "line": 481,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "calleeId": "external::NotebookLMClient.from_storage",
+        "calleeName": "from_storage",
+        "line": 44,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "calleeId": "external::NotebookLMClient.from_storage",
+        "calleeName": "from_storage",
+        "line": 45,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeId": "external::msg.lower",
+        "calleeName": "lower",
+        "line": 53,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "calleeId": "external::msg.lower",
+        "calleeName": "lower",
+        "line": 55,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::health",
+        "calleeId": "external::app.get",
+        "calleeName": "get",
+        "line": 121,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::list_notebooks",
+        "calleeId": "external::app.get",
+        "calleeName": "get",
+        "line": 129,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::list_notebooks",
+        "calleeId": "external::nb.model_dump",
+        "calleeName": "model_dump",
+        "line": 135,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::create_notebook",
+        "calleeId": "external::app.post",
+        "calleeName": "post",
+        "line": 140,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::create_notebook",
+        "calleeId": "external::nb.model_dump",
+        "calleeName": "model_dump",
+        "line": 146,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::get_notebook",
+        "calleeId": "external::app.get",
+        "calleeName": "get",
+        "line": 151,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::get_notebook",
+        "calleeId": "external::nb.model_dump",
+        "calleeName": "model_dump",
+        "line": 157,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::rename_notebook",
+        "calleeId": "external::app.patch",
+        "calleeName": "patch",
+        "line": 173,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::rename_notebook",
+        "calleeId": "external::nb.model_dump",
+        "calleeName": "model_dump",
+        "line": 179,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::get_notebook_summary",
+        "calleeId": "external::app.get",
+        "calleeName": "get",
+        "line": 184,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::get_notebook_description",
+        "calleeId": "external::app.get",
+        "calleeName": "get",
+        "line": 195,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::get_notebook_description",
+        "calleeId": "external::desc.model_dump",
+        "calleeName": "model_dump",
+        "line": 201,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::list_sources",
+        "calleeId": "external::app.get",
+        "calleeName": "get",
+        "line": 209,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::list_sources",
+        "calleeId": "external::s.model_dump",
+        "calleeName": "model_dump",
+        "line": 215,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_url",
+        "calleeId": "external::app.post",
+        "calleeName": "post",
+        "line": 220,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_url",
+        "calleeId": "external::src.model_dump",
+        "calleeName": "model_dump",
+        "line": 226,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_url",
+        "calleeId": "external::src.model_dump",
+        "calleeName": "model_dump",
+        "line": 231,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_youtube",
+        "calleeId": "external::app.post",
+        "calleeName": "post",
+        "line": 238,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_youtube",
+        "calleeId": "external::src.model_dump",
+        "calleeName": "model_dump",
+        "line": 244,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_youtube",
+        "calleeId": "external::src.model_dump",
+        "calleeName": "model_dump",
+        "line": 248,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_text",
+        "calleeId": "external::app.post",
+        "calleeName": "post",
+        "line": 255,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_text",
+        "calleeId": "external::src.model_dump",
+        "calleeName": "model_dump",
+        "line": 261,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_file",
+        "calleeId": "external::app.post",
+        "calleeName": "post",
+        "line": 266,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_file",
+        "calleeId": "external::tempfile.gettempdir",
+        "calleeName": "gettempdir",
+        "line": 274,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_file",
+        "calleeId": "external::uuid.uuid4",
+        "calleeName": "uuid4",
+        "line": 274,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_file",
+        "calleeId": "external::f.write",
+        "calleeName": "write",
+        "line": 276,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_file",
+        "calleeId": "external::upload.read",
+        "calleeName": "read",
+        "line": 276,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_file",
+        "calleeId": "external::src.model_dump",
+        "calleeName": "model_dump",
+        "line": 282,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::get_source_fulltext",
+        "calleeId": "external::app.get",
+        "calleeName": "get",
+        "line": 292,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::get_source_fulltext",
+        "calleeId": "external::ft.model_dump",
+        "calleeName": "model_dump",
+        "line": 298,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::get_source_guide",
+        "calleeId": "external::app.get",
+        "calleeName": "get",
+        "line": 303,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::chat_ask",
+        "calleeId": "external::app.post",
+        "calleeName": "post",
+        "line": 328,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::chat_ask",
+        "calleeId": "external::result.model_dump",
+        "calleeName": "model_dump",
+        "line": 336,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::list_artifacts",
+        "calleeId": "external::app.get",
+        "calleeName": "get",
+        "line": 345,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::list_artifacts",
+        "calleeId": "external::a.model_dump",
+        "calleeName": "model_dump",
+        "line": 351,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::generate_artifact",
+        "calleeId": "external::app.post",
+        "calleeName": "post",
+        "line": 356,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::generate_artifact",
+        "calleeId": "external::status.model_dump",
+        "calleeName": "model_dump",
+        "line": 388,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::poll_task",
+        "calleeId": "external::app.get",
+        "calleeName": "get",
+        "line": 394,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::poll_task",
+        "calleeId": "external::status.model_dump",
+        "calleeName": "model_dump",
+        "line": 404,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::download_artifact",
+        "calleeId": "external::app.get",
+        "calleeName": "get",
+        "line": 410,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::download_artifact",
+        "calleeId": "external::tempfile.gettempdir",
+        "calleeName": "gettempdir",
+        "line": 442,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/example/app.py::download_artifact",
+        "calleeId": "external::uuid.uuid4",
+        "calleeName": "uuid4",
+        "line": 442,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::download_wav_bytes",
+        "calleeId": "external::Path",
+        "calleeName": "Path",
+        "line": 49,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::rebuild_feed",
+        "calleeId": "external::Podcast",
+        "calleeName": "Podcast",
+        "line": 81,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::rebuild_feed",
+        "calleeId": "external::Episode",
+        "calleeName": "Episode",
+        "line": 107,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::rebuild_feed",
+        "calleeId": "external::Media",
+        "calleeName": "Media",
+        "line": 109,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::purge_old_episodes",
+        "calleeId": "external::timedelta",
+        "calleeName": "timedelta",
+        "line": 119,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::load_history",
+        "calleeName": "load_history",
+        "line": 170,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeId": "external::Path",
+        "calleeName": "Path",
+        "line": 232,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::convert_to_mp3",
+        "calleeName": "convert_to_mp3",
+        "line": 241,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::purge_old_episodes",
+        "calleeName": "purge_old_episodes",
+        "line": 265,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::rebuild_feed",
+        "calleeName": "rebuild_feed",
+        "line": 268,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::save_history",
+        "calleeName": "save_history",
+        "line": 271,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main",
+        "calleeId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeName": "main_async",
+        "line": 281,
+        "confidence": "same_file",
+        "kind": "calls",
+        "callType": "direct"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::load_history",
+        "calleeId": "external::HISTORY_FILE.exists",
+        "calleeName": "exists",
+        "line": 38,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::load_history",
+        "calleeId": "external::json.load",
+        "calleeName": "load",
+        "line": 40,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::download_wav_bytes",
+        "calleeId": "external::f.write",
+        "calleeName": "write",
+        "line": 52,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::convert_to_mp3",
+        "calleeId": "external::subprocess.run",
+        "calleeName": "run",
+        "line": 70,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::rebuild_feed",
+        "calleeId": "external::history.items",
+        "calleeName": "items",
+        "line": 90,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::rebuild_feed",
+        "calleeId": "external::data.get",
+        "calleeName": "get",
+        "line": 96,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::rebuild_feed",
+        "calleeId": "external::data.get",
+        "calleeName": "get",
+        "line": 97,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::rebuild_feed",
+        "calleeId": "external::datetime.fromisoformat",
+        "calleeName": "fromisoformat",
+        "line": 103,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::rebuild_feed",
+        "calleeId": "external::datetime.now",
+        "calleeName": "now",
+        "line": 105,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::rebuild_feed",
+        "calleeId": "external::podcast.add_episode",
+        "calleeName": "add_episode",
+        "line": 112,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::rebuild_feed",
+        "calleeId": "external::podcast.rss_file",
+        "calleeName": "rss_file",
+        "line": 114,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::rebuild_feed",
+        "calleeId": "external::logger.info",
+        "calleeName": "info",
+        "line": 115,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::purge_old_episodes",
+        "calleeId": "external::datetime.now",
+        "calleeName": "now",
+        "line": 119,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::purge_old_episodes",
+        "calleeId": "external::history.items",
+        "calleeName": "items",
+        "line": 121,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::purge_old_episodes",
+        "calleeId": "external::datetime.fromisoformat",
+        "calleeName": "fromisoformat",
+        "line": 123,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::purge_old_episodes",
+        "calleeId": "external::history.pop",
+        "calleeName": "pop",
+        "line": 131,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::purge_old_episodes",
+        "calleeId": "external::data.get",
+        "calleeName": "get",
+        "line": 132,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::purge_old_episodes",
+        "calleeId": "external::mp3_path.exists",
+        "calleeName": "exists",
+        "line": 135,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::purge_old_episodes",
+        "calleeId": "external::mp3_path.unlink",
+        "calleeName": "unlink",
+        "line": 136,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::purge_old_episodes",
+        "calleeId": "external::logger.info",
+        "calleeName": "info",
+        "line": 137,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeId": "external::logger.info",
+        "calleeName": "info",
+        "line": 152,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeId": "external::NotebookLMClient.from_storage",
+        "calleeName": "from_storage",
+        "line": 153,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeId": "external::logger.info",
+        "calleeName": "info",
+        "line": 154,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeId": "external::logger.info",
+        "calleeName": "info",
+        "line": 171,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeId": "external::logger.info",
+        "calleeName": "info",
+        "line": 175,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeId": "external::logger.debug",
+        "calleeName": "debug",
+        "line": 190,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeId": "external::artifact_type.lower",
+        "calleeName": "lower",
+        "line": 202,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeId": "external::datetime.now",
+        "calleeName": "now",
+        "line": 211,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeId": "external::logger.info",
+        "calleeName": "info",
+        "line": 213,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeId": "external::logger.warning",
+        "calleeName": "warning",
+        "line": 221,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeId": "external::f.write",
+        "calleeName": "write",
+        "line": 235,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeId": "external::temp_path.unlink",
+        "calleeName": "unlink",
+        "line": 243,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeId": "external::logger.info",
+        "calleeName": "info",
+        "line": 246,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeId": "external::temp_path.unlink",
+        "calleeName": "unlink",
+        "line": 249,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeId": "external::temp_path.unlink",
+        "calleeName": "unlink",
+        "line": 253,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeId": "external::logger.info",
+        "calleeName": "info",
+        "line": 262,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeId": "external::logger.info",
+        "calleeName": "info",
+        "line": 276,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+        "calleeId": "external::asyncio.sleep",
+        "calleeName": "sleep",
+        "line": 277,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "awaited"
+      },
+      {
+        "callerId": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main",
+        "calleeId": "external::asyncio.run",
+        "calleeName": "run",
+        "line": 281,
+        "confidence": "external",
+        "kind": "calls",
+        "callType": "method"
+      }
+    ],
+    "classes": [
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "name": "[app]",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "language": "Python",
+        "parentClasses": [],
+        "interfaces": [],
+        "methodIds": [
+          "/Users/laurent/Projets/NoteCast/example/app.py::require_api_key",
+          "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+          "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+          "/Users/laurent/Projets/NoteCast/example/app.py::health",
+          "/Users/laurent/Projets/NoteCast/example/app.py::list_notebooks",
+          "/Users/laurent/Projets/NoteCast/example/app.py::create_notebook",
+          "/Users/laurent/Projets/NoteCast/example/app.py::get_notebook",
+          "/Users/laurent/Projets/NoteCast/example/app.py::delete_notebook",
+          "/Users/laurent/Projets/NoteCast/example/app.py::rename_notebook",
+          "/Users/laurent/Projets/NoteCast/example/app.py::get_notebook_summary",
+          "/Users/laurent/Projets/NoteCast/example/app.py::get_notebook_description",
+          "/Users/laurent/Projets/NoteCast/example/app.py::list_sources",
+          "/Users/laurent/Projets/NoteCast/example/app.py::add_source_url",
+          "/Users/laurent/Projets/NoteCast/example/app.py::add_source_youtube",
+          "/Users/laurent/Projets/NoteCast/example/app.py::add_source_text",
+          "/Users/laurent/Projets/NoteCast/example/app.py::add_source_file",
+          "/Users/laurent/Projets/NoteCast/example/app.py::get_source_fulltext",
+          "/Users/laurent/Projets/NoteCast/example/app.py::get_source_guide",
+          "/Users/laurent/Projets/NoteCast/example/app.py::delete_source",
+          "/Users/laurent/Projets/NoteCast/example/app.py::chat_ask",
+          "/Users/laurent/Projets/NoteCast/example/app.py::list_artifacts",
+          "/Users/laurent/Projets/NoteCast/example/app.py::generate_artifact",
+          "/Users/laurent/Projets/NoteCast/example/app.py::poll_task",
+          "/Users/laurent/Projets/NoteCast/example/app.py::download_artifact"
+        ],
+        "fanIn": 40,
+        "fanOut": 90,
+        "isModule": true
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/bridge/harvester.py",
+        "name": "[harvester]",
+        "filePath": "/Users/laurent/Projets/NoteCast/bridge/harvester.py",
+        "language": "Python",
+        "parentClasses": [],
+        "interfaces": [],
+        "methodIds": [
+          "/Users/laurent/Projets/NoteCast/bridge/harvester.py::load_history",
+          "/Users/laurent/Projets/NoteCast/bridge/harvester.py::save_history",
+          "/Users/laurent/Projets/NoteCast/bridge/harvester.py::download_wav_bytes",
+          "/Users/laurent/Projets/NoteCast/bridge/harvester.py::convert_to_mp3",
+          "/Users/laurent/Projets/NoteCast/bridge/harvester.py::rebuild_feed",
+          "/Users/laurent/Projets/NoteCast/bridge/harvester.py::purge_old_episodes",
+          "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main_async",
+          "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main"
+        ],
+        "fanIn": 6,
+        "fanOut": 41,
+        "isModule": true
+      },
+      {
+        "id": "external",
+        "name": "[external]",
+        "filePath": "external",
+        "language": "external",
+        "parentClasses": [],
+        "interfaces": [],
+        "methodIds": [
+          "external::HTTPException",
+          "external::File",
+          "external::Form",
+          "external::FileResponse",
+          "external::NotebookLMClient.from_storage",
+          "external::msg.lower",
+          "external::app.get",
+          "external::nb.model_dump",
+          "external::app.post",
+          "external::app.patch",
+          "external::desc.model_dump",
+          "external::s.model_dump",
+          "external::src.model_dump",
+          "external::tempfile.gettempdir",
+          "external::uuid.uuid4",
+          "external::f.write",
+          "external::upload.read",
+          "external::ft.model_dump",
+          "external::result.model_dump",
+          "external::a.model_dump",
+          "external::status.model_dump",
+          "external::Path",
+          "external::Podcast",
+          "external::Episode",
+          "external::Media",
+          "external::timedelta",
+          "external::HISTORY_FILE.exists",
+          "external::json.load",
+          "external::subprocess.run",
+          "external::history.items",
+          "external::data.get",
+          "external::datetime.fromisoformat",
+          "external::datetime.now",
+          "external::podcast.add_episode",
+          "external::podcast.rss_file",
+          "external::logger.info",
+          "external::history.pop",
+          "external::mp3_path.exists",
+          "external::mp3_path.unlink",
+          "external::logger.debug",
+          "external::artifact_type.lower",
+          "external::logger.warning",
+          "external::temp_path.unlink",
+          "external::asyncio.sleep",
+          "external::asyncio.run"
+        ],
+        "fanIn": 85,
+        "fanOut": 0,
+        "isModule": true
+      }
+    ],
+    "inheritanceEdges": [],
+    "hubFunctions": [
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::get_client",
+        "name": "get_client",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": true,
+        "language": "Python",
+        "startIndex": 1243,
+        "endIndex": 1852,
+        "fanIn": 20,
+        "fanOut": 2,
+        "docstring": "Creates a client using notebooklm-py's supported auth precedence:",
+        "signature": "async def get_client() -> NotebookLMClient"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::map_rpc_error",
+        "name": "map_rpc_error",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 1855,
+        "endIndex": 2289,
+        "fanIn": 20,
+        "fanOut": 2,
+        "signature": "def map_rpc_error(e: RPCError) -> HTTPException"
+      }
+    ],
+    "entryPoints": [
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_file",
+        "name": "add_source_file",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 8860,
+        "endIndex": 9751,
+        "fanIn": 0,
+        "fanOut": 10,
+        "signature": "@app.post(\"/v1/notebooks/{notebook_id}/sources/file\") async def add_source_file( notebook_id: str, upload: UploadFile = File(...), mime_type: Optional[str] = Form(None), )"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::download_artifact",
+        "name": "download_artifact",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 14876,
+        "endIndex": 18054,
+        "fanIn": 0,
+        "fanOut": 7,
+        "signature": "@app.get(\"/v1/notebooks/{notebook_id}/artifacts/download\") async def download_artifact( notebook_id: str, type: Literal[ \"audio\", \"video\", \"infographic\", \"slide_deck\", \"report\", \"mind_map\", \"data_table\", \"quiz\", \"flashcards\", ], artifact_id: Optional[str] = None, output_format: Optional[Literal[\"jso"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::generate_artifact",
+        "name": "generate_artifact",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 12271,
+        "endIndex": 14220,
+        "fanIn": 0,
+        "fanOut": 5,
+        "signature": "@app.post(\"/v1/notebooks/{notebook_id}/artifacts/generate\") async def generate_artifact(notebook_id: str, req: ArtifactGenerateReq)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::list_notebooks",
+        "name": "list_notebooks",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 3692,
+        "endIndex": 4046,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.get(\"/v1/notebooks\") async def list_notebooks()"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::create_notebook",
+        "name": "create_notebook",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 4049,
+        "endIndex": 4424,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.post(\"/v1/notebooks\") async def create_notebook(req: NotebookCreateReq)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::get_notebook",
+        "name": "get_notebook",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 4427,
+        "endIndex": 4805,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.get(\"/v1/notebooks/{notebook_id}\") async def get_notebook(notebook_id: str)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::rename_notebook",
+        "name": "rename_notebook",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 5144,
+        "endIndex": 5576,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.patch(\"/v1/notebooks/{notebook_id}/rename\") async def rename_notebook(notebook_id: str, req: NotebookRenameReq)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::get_notebook_description",
+        "name": "get_notebook_description",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 5934,
+        "endIndex": 6359,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.get(\"/v1/notebooks/{notebook_id}/description\") async def get_notebook_description(notebook_id: str)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::list_sources",
+        "name": "list_sources",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 6434,
+        "endIndex": 6833,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.get(\"/v1/notebooks/{notebook_id}/sources\") async def list_sources(notebook_id: str)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_url",
+        "name": "add_source_url",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 6836,
+        "endIndex": 7640,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.post(\"/v1/notebooks/{notebook_id}/sources/url\") async def add_source_url(notebook_id: str, req: SourceAddUrlReq)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_youtube",
+        "name": "add_source_youtube",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 7643,
+        "endIndex": 8407,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.post(\"/v1/notebooks/{notebook_id}/sources/youtube\") async def add_source_youtube(notebook_id: str, req: SourceAddYoutubeReq)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::add_source_text",
+        "name": "add_source_text",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 8410,
+        "endIndex": 8857,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.post(\"/v1/notebooks/{notebook_id}/sources/text\") async def add_source_text(notebook_id: str, req: SourceAddTextReq)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::get_source_fulltext",
+        "name": "get_source_fulltext",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 9754,
+        "endIndex": 10202,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.get(\"/v1/notebooks/{notebook_id}/sources/{source_id}/fulltext\") async def get_source_fulltext(notebook_id: str, source_id: str)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::chat_ask",
+        "name": "chat_ask",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 11039,
+        "endIndex": 11658,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.post(\"/v1/notebooks/{notebook_id}/chat/ask\") async def chat_ask(notebook_id: str, req: ChatAskReq)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::list_artifacts",
+        "name": "list_artifacts",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 11770,
+        "endIndex": 12268,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.get(\"/v1/notebooks/{notebook_id}/artifacts\") async def list_artifacts(notebook_id: str, type: Optional[str] = None)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::poll_task",
+        "name": "poll_task",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 14223,
+        "endIndex": 14873,
+        "fanIn": 0,
+        "fanOut": 4,
+        "signature": "@app.get(\"/v1/notebooks/{notebook_id}/artifacts/tasks/{task_id}\") async def poll_task(notebook_id: str, task_id: str, wait: bool = False)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::get_notebook_summary",
+        "name": "get_notebook_summary",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 5579,
+        "endIndex": 5931,
+        "fanIn": 0,
+        "fanOut": 3,
+        "signature": "@app.get(\"/v1/notebooks/{notebook_id}/summary\") async def get_notebook_summary(notebook_id: str)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::get_source_guide",
+        "name": "get_source_guide",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 10205,
+        "endIndex": 10588,
+        "fanIn": 0,
+        "fanOut": 3,
+        "signature": "@app.get(\"/v1/notebooks/{notebook_id}/sources/{source_id}/guide\") async def get_source_guide(notebook_id: str, source_id: str)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::delete_notebook",
+        "name": "delete_notebook",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 4808,
+        "endIndex": 5141,
+        "fanIn": 0,
+        "fanOut": 2,
+        "signature": "@app.delete(\"/v1/notebooks/{notebook_id}\") async def delete_notebook(notebook_id: str)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::delete_source",
+        "name": "delete_source",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 10591,
+        "endIndex": 10967,
+        "fanIn": 0,
+        "fanOut": 2,
+        "signature": "@app.delete(\"/v1/notebooks/{notebook_id}/sources/{source_id}\") async def delete_source(notebook_id: str, source_id: str)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::download_wav_bytes",
+        "name": "download_wav_bytes",
+        "filePath": "/Users/laurent/Projets/NoteCast/bridge/harvester.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 1265,
+        "endIndex": 1630,
+        "fanIn": 0,
+        "fanOut": 2,
+        "docstring": "Save WAV bytes to a temporary file.",
+        "signature": "def download_wav_bytes(artifact_id, wav_data)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/bridge/harvester.py::main",
+        "name": "main",
+        "filePath": "/Users/laurent/Projets/NoteCast/bridge/harvester.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 10482,
+        "endIndex": 10561,
+        "fanIn": 0,
+        "fanOut": 2,
+        "docstring": "Entry point for the script.",
+        "signature": "def main()"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::require_api_key",
+        "name": "require_api_key",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 720,
+        "endIndex": 1240,
+        "fanIn": 0,
+        "fanOut": 1,
+        "signature": "def require_api_key(x_api_key: Optional[str] = None)"
+      },
+      {
+        "id": "/Users/laurent/Projets/NoteCast/example/app.py::health",
+        "name": "health",
+        "filePath": "/Users/laurent/Projets/NoteCast/example/app.py",
+        "isAsync": false,
+        "language": "Python",
+        "startIndex": 3552,
+        "endIndex": 3615,
+        "fanIn": 0,
+        "fanOut": 1,
+        "signature": "@app.get(\"/health\") async def health()"
+      }
+    ],
+    "layerViolations": [],
+    "stats": {
+      "totalNodes": 32,
+      "totalEdges": 149,
+      "avgFanIn": 1.4375,
+      "avgFanOut": 4.09375
+    }
+  }
+}

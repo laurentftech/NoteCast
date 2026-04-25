@@ -1,0 +1,42 @@
+[
+  {
+    "name": "BASE_URL",
+    "files": [
+      "bridge/harvester.py"
+    ],
+    "hasDefault": false,
+    "required": false
+  },
+  {
+    "name": "NOTEBOOKLM_REST_API_KEY",
+    "files": [
+      "example/app.py"
+    ],
+    "hasDefault": false,
+    "required": false
+  },
+  {
+    "name": "NOTEBOOKLM_STORAGE_PATH",
+    "files": [
+      "example/app.py"
+    ],
+    "hasDefault": false,
+    "required": false
+  },
+  {
+    "name": "POLL_INTERVAL",
+    "files": [
+      "bridge/harvester.py"
+    ],
+    "hasDefault": false,
+    "required": false
+  },
+  {
+    "name": "RETENTION_DAYS",
+    "files": [
+      "bridge/harvester.py"
+    ],
+    "hasDefault": false,
+    "required": false
+  }
+]

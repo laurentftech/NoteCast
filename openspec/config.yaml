@@ -1,0 +1,13 @@
+schema: spec-driven
+spec-gen:
+  version: 1.0.0
+  generatedAt: 2026-04-24T20:59:04.523Z
+  domains:
+    - artifact
+    - feed
+  confidence: 0.75
+context: |-
+  # Auto-detected by spec-gen
+  Tech stack: Python
+  Architecture: Monolithic
+  Domains: artifact, feed, history

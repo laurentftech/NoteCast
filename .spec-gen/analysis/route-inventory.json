@@ -1,0 +1,182 @@
+{
+  "total": 21,
+  "byMethod": {
+    "GET": 11,
+    "POST": 7,
+    "DELETE": 2,
+    "PATCH": 1
+  },
+  "byFramework": {
+    "fastapi": 21
+  },
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/health",
+      "framework": "fastapi",
+      "file": "example/app.py",
+      "handler": "unknown",
+      "contractSource": "none"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/notebooks",
+      "framework": "fastapi",
+      "file": "example/app.py",
+      "handler": "unknown",
+      "contractSource": "none"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/notebooks",
+      "framework": "fastapi",
+      "file": "example/app.py",
+      "handler": "unknown",
+      "contractSource": "none"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/notebooks/{notebook_id}",
+      "framework": "fastapi",
+      "file": "example/app.py",
+      "handler": "unknown",
+      "contractSource": "none"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/notebooks/{notebook_id}",
+      "framework": "fastapi",
+      "file": "example/app.py",
+      "handler": "list_notebooks",
+      "contractSource": "none"
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/notebooks/{notebook_id}/rename",
+      "framework": "fastapi",
+      "file": "example/app.py",
+      "handler": "create_notebook",
+      "contractSource": "none"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/notebooks/{notebook_id}/summary",
+      "framework": "fastapi",
+      "file": "example/app.py",
+      "handler": "get_notebook",
+      "contractSource": "none"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/notebooks/{notebook_id}/description",
+      "framework": "fastapi",
+      "file": "example/app.py",
+      "handler": "delete_notebook",
+      "contractSource": "none"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/notebooks/{notebook_id}/sources",
+      "framework": "fastapi",
+      "file": "example/app.py",
+      "handler": "rename_notebook",
+      "contractSource": "none"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/notebooks/{notebook_id}/sources/url",
+      "framework": "fastapi",
+      "file": "example/app.py",
+      "handler": "get_notebook_summary",
+      "contractSource": "none"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/notebooks/{notebook_id}/sources/youtube",
+      "framework": "fastapi",
+      "file": "example/app.py",
+      "handler": "list_sources",
+      "contractSource": "none"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/notebooks/{notebook_id}/sources/text",
+      "framework": "fastapi",
+      "file": "example/app.py",
+      "handler": "unknown",
+      "contractSource": "none"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/notebooks/{notebook_id}/sources/file",
+      "framework": "fastapi",
+      "file": "example/app.py",
+      "handler": "add_source_youtube",
+      "contractSource": "none"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/notebooks/{notebook_id}/sources/{source_id}/fulltext",
+      "framework": "fastapi",
+      "file": "example/app.py",
+      "handler": "add_source_text",
+      "contractSource": "none"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/notebooks/{notebook_id}/sources/{source_id}/guide",
+      "framework": "fastapi",
+      "file": "example/app.py",
+      "handler": "add_source_file",
+      "contractSource": "none"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/notebooks/{notebook_id}/sources/{source_id}",
+      "framework": "fastapi",
+      "file": "example/app.py",
+      "handler": "unknown",
+      "contractSource": "none"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/notebooks/{notebook_id}/chat/ask",
+      "framework": "fastapi",
+      "file": "example/app.py",
+      "handler": "get_source_fulltext",
+      "contractSource": "none"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/notebooks/{notebook_id}/artifacts",
+      "framework": "fastapi",
+      "file": "example/app.py",
+      "handler": "get_source_guide",
+      "contractSource": "none"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/notebooks/{notebook_id}/artifacts/generate",
+      "framework": "fastapi",
+      "file": "example/app.py",
+      "handler": "delete_source",
+      "contractSource": "none"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/notebooks/{notebook_id}/artifacts/tasks/{task_id}",
+      "framework": "fastapi",
+      "file": "example/app.py",
+      "handler": "unknown",
+      "contractSource": "none"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/notebooks/{notebook_id}/artifacts/download",
+      "framework": "fastapi",
+      "file": "example/app.py",
+      "handler": "unknown",
+      "contractSource": "none"
+    }
+  ]
+}
