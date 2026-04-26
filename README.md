@@ -114,6 +114,29 @@ Paste this URL into Overcast, Pocket Casts, Apple Podcasts, or any RSS-capable a
 | `WEBHOOK_URL` | no | *(none)* | HTTP endpoint to POST when a new episode is downloaded (ntfy, Slack, Discord, …) |
 | `WEBHOOK_HEADERS` | no | *(none)* | JSON object of headers sent with each webhook request — e.g. `{"Authorization": "Bearer token"}` |
 | `WEBHOOK_LINK` | no | *(none)* | URL included as `click` field in ntfy notifications (e.g. Apple Podcasts deep link) |
+| `TOKEN_EXPIRY_WARN_DAYS` | no | `7` | Days before NotebookLM token expiry to send a warning notification (requires `WEBHOOK_URL`) |
+
+---
+
+## Token expiry monitoring
+
+The admin panel (`/`) displays your NotebookLM token expiry status with color-coded warnings:
+
+- **Green** — more than 7 days remaining
+- **Orange** — 2–7 days remaining
+- **Red** — expires today, tomorrow, or already expired
+
+When `WEBHOOK_URL` is configured, the bridge sends a notification (ntfy, Slack, Discord, …) when the token is within the warning threshold. Notifications are rate-limited to once per 24 hours to avoid spam. The webhook payload is a JSON object:
+
+```json
+{
+  "title": "Token expires in 3 day(s)",
+  "message": "NotebookLM token expires in 3 day(s) — please renew it",
+  "tags": ["warning"]
+}
+```
+
+If you need to adjust the warning window, set `TOKEN_EXPIRY_WARN_DAYS` in `.env` (default: `7`). Renew your credentials by running `notebooklm login` again and uploading the fresh `storage_state.json` to `/auth/upload`.
 
 ---
 
@@ -121,12 +144,25 @@ Paste this URL into Overcast, Pocket Casts, Apple Podcasts, or any RSS-capable a
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/api/status` | — | Bridge status: episode count, last poll, next poll countdown |
+| `GET` | `/api/status` | — | Bridge status: episode count, last poll, next poll countdown, token expiry info |
 | `GET` | `/api/episodes` | — | Episode list as JSON |
 | `POST` | `/api/poll` | key | Trigger an immediate poll (skips the wait) |
 | `POST` | `/auth/upload` | key | Upload a new `storage_state.json` |
 | `GET` | `/health` | — | Health check |
 | `GET` | `/feed.xml` | — | RSS feed |
+
+**`/api/status` response**
+```json
+{
+  "episodes": 42,
+  "last_updated": 1745650800,
+  "next_poll_in": 43200,
+  "token_expires_at": 1748352000,
+  "token_expires_in_days": 7,
+  "token_expires_at_iso": "2026-05-26T12:00:00+00:00"
+}
+```
+`token_expires_*` fields are omitted if no credentials are loaded.
 
 *key = requires `X-Api-Key` header when `BRIDGE_API_KEY` is set*
 
