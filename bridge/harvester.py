@@ -98,6 +98,17 @@ def remux_to_m4a(src_path, m4a_path):
         logger.error(f"Unexpected error during remux: {e}")
         return None
 
+def get_duration(path):
+    try:
+        result = subprocess.run(
+            ['ffprobe', '-v', 'quiet', '-show_entries', 'format=duration',
+             '-of', 'default=noprint_wrappers=1:nokey=1', str(path)],
+            capture_output=True, text=True, check=True,
+        )
+        return int(float(result.stdout.strip()))
+    except Exception:
+        return None
+
 def rebuild_feed(history):
     """Rebuild the RSS feed from the history."""
     image_url = FEED_IMAGE_URL
@@ -284,6 +295,7 @@ async def main_async():
                             'downloaded_at': datetime.now(timezone.utc).isoformat(),
                             'mp3_filename': m4a_filename,
                             'notebook': notebook_title,
+                            'duration': get_duration(m4a_path),
                         }
                         logger.info(f"Successfully processed artifact {artifact_id}")
                         save_history(history)
@@ -339,6 +351,7 @@ async def handle_episodes(request):
                 'created_at': v['created_at'],
                 'url': f"{BASE_URL}/episodes/{v['mp3_filename']}",
                 'filename': v['mp3_filename'],
+                'duration': v.get('duration'),
             }
             for k, v in history.items()
         ],
