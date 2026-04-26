@@ -39,7 +39,7 @@ PUBLIC_DIR = Path('/public')
 EPISODES_DIR = PUBLIC_DIR / 'episodes'
 HISTORY_FILE = Path('/data/history.json')
 FEED_FILE = PUBLIC_DIR / 'feed.xml'
-AUTH_FILE = Path('/auth/storage_state.json')
+AUTH_FILE = Path('/root/.notebooklm/storage_state.json')
 
 # Token expiry tracking
 TOKEN_EXPIRY_WARN_DAYS = int(os.getenv('TOKEN_EXPIRY_WARN_DAYS', '7'))
@@ -426,7 +426,7 @@ async def main_async():
         except asyncio.TimeoutError:
             pass
 
-AUTH_STORAGE_FILE = Path('/root/.notebooklm/storage_state.json')
+AUTH_STORAGE_FILE = AUTH_FILE
 
 _last_updated: str = ''
 _next_poll_at: float = 0.0
