@@ -4,7 +4,10 @@ Turns your NotebookLM audio overviews into a personal podcast feed.
 
 > **Disclaimer:** NoteCast uses [notebooklm-py](https://github.com/teng-lin/notebooklm-py), an **unofficial** reverse-engineered client for NotebookLM. It is not affiliated with or endorsed by Google. Use at your own risk — Google may change their API or ToS at any time.
 
+
 ![NoteCast web UI](docs/notecast-web.png)
+
+<img src="docs/apple-podcast.png" width="375" alt="Apple Podcasts">
 
 ## How it works
 
