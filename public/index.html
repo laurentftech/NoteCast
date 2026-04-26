@@ -665,7 +665,7 @@
   </div>
   <div class="header-info">
     <h1>NoteCast</h1>
-    <div class="subtitle" id="subtitle">Loading…</div>
+    <div class="subtitle"><span id="subtitle">Loading…</span> <span id="appVersion" style="opacity:0.4;font-size:11px"></span></div>
   </div>
   <div class="header-actions">
     <div class="copy-wrap" id="copyFeedWrap">
@@ -1018,6 +1018,7 @@
       document.getElementById('statEpisodes').textContent = s.episodes;
       document.getElementById('statNextPoll').textContent = fmtCountdown(s.next_poll_in);
       document.getElementById('statUpdated').textContent = s.last_updated ? relTime(s.last_updated) : '—';
+      if (s.version) document.getElementById('appVersion').textContent = s.version;
       
       // Update token expiry with warning colors
       const tokenElem = document.getElementById('statTokenExpiry');

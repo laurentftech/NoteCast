@@ -24,6 +24,7 @@ POLL_INTERVAL = int(os.getenv('POLL_INTERVAL', '86400'))
 RETENTION_DAYS = int(os.getenv('RETENTION_DAYS', '14'))
 BRIDGE_PORT = int(os.getenv('BRIDGE_PORT', '8080'))
 BRIDGE_API_KEY = os.getenv('BRIDGE_API_KEY', '')  # optional — set to restrict /auth/upload
+APP_VERSION = os.getenv('APP_VERSION', 'dev')
 FEED_IMAGE_URL = os.getenv('FEED_IMAGE_URL', '')
 WEBHOOK_URL = os.getenv('WEBHOOK_URL', '')
 WEBHOOK_LINK = os.getenv('WEBHOOK_LINK', '')
@@ -443,6 +444,7 @@ async def handle_status(request):
     token_expires_at, token_expires_in_days, token_expires_at_iso = get_token_expiry()
     
     status = {
+        'version': APP_VERSION,
         'episodes': len(history),
         'last_updated': _last_updated,
         'next_poll_in': max(0, int(_next_poll_at - now)),
