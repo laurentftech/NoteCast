@@ -334,7 +334,9 @@ async def main_async():
     history = load_history()
     recover_history_from_disk(history)
     save_history(history)
-    logger.info(f"NoteCast bridge {APP_VERSION} starting")
+    logger.info("=" * 40)
+    logger.info(f"  NoteCast bridge {APP_VERSION}")
+    logger.info("=" * 40)
     logger.info(f"Starting harvester with {len(history)} known artifacts")
 
     while True:
