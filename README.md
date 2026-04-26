@@ -157,11 +157,12 @@ Paste this URL into Overcast, Pocket Casts, Apple Podcasts, or any RSS-capable a
 ## Updating
 
 ```bash
+curl -o public/index.html https://raw.githubusercontent.com/laurentftech/NoteCast/main/public/index.html
 docker compose pull
 docker compose up -d
 ```
 
-That's it — Caddy and episode files are untouched. The bridge container is replaced with the new image.
+Episode files and credentials are untouched. The bridge container is replaced with the new image; `index.html` is updated in place (Caddy serves it directly from disk).
 
 **On Synology (Container Manager UI)**
 1. *Registry* → search `ghcr.io/laurentftech/notecast` → Download latest
