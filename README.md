@@ -157,6 +157,7 @@ Paste this URL into Overcast, Pocket Casts, Apple Podcasts, or any RSS-capable a
 ## Updating
 
 ```bash
+cd /path/to/notecast   # folder containing docker-compose.yml
 curl -o public/index.html https://raw.githubusercontent.com/laurentftech/NoteCast/main/public/index.html
 docker compose pull
 docker compose up -d
