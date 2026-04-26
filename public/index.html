@@ -750,6 +750,10 @@
         <div class="stat-value" style="font-size:15px;font-weight:550;background:none;-webkit-background-clip:initial;color:var(--text)" id="statUpdated">—</div>
         <div class="stat-label">Last updated</div>
       </div>
+      <div class="stat" style="grid-column:span 2">
+        <div class="stat-value" style="font-size:15px;font-weight:550;background:none;-webkit-background-clip:initial;color:var(--text)" id="statTokenExpiry">—</div>
+        <div class="stat-label">NotebookLM token expires</div>
+      </div>
     </div>
 
     <button class="btn btn-accent" id="pollNowBtn" style="width:100%;justify-content:center;margin-bottom:18px;">
@@ -1003,6 +1007,31 @@
       document.getElementById('statEpisodes').textContent = s.episodes;
       document.getElementById('statNextPoll').textContent = fmtCountdown(s.next_poll_in);
       document.getElementById('statUpdated').textContent = s.last_updated ? relTime(s.last_updated) : '—';
+      
+      // Update token expiry with warning colors
+      const tokenElem = document.getElementById('statTokenExpiry');
+      if (s.token_expires_in_days !== undefined) {
+        const days = s.token_expires_in_days;
+        if (days < 0) {
+          tokenElem.textContent = 'Expired ⚠️';
+          tokenElem.style.color = '#dc2626';
+        } else if (days === 0) {
+          tokenElem.textContent = 'Expires today ⚠️';
+          tokenElem.style.color = '#dc2626';
+        } else if (days === 1) {
+          tokenElem.textContent = 'Tomorrow ⚠️';
+          tokenElem.style.color = '#dc2626';
+        } else if (days < 7) {
+          tokenElem.textContent = `${days} days ⚠️`;
+          tokenElem.style.color = '#ea580c';
+        } else {
+          tokenElem.textContent = `${days} days`;
+          tokenElem.style.color = 'var(--text)';
+        }
+      } else {
+        tokenElem.textContent = '—';
+        tokenElem.style.color = 'var(--text)';
+      }
     } catch {}
   }
 

@@ -39,6 +39,11 @@ PUBLIC_DIR = Path('/public')
 EPISODES_DIR = PUBLIC_DIR / 'episodes'
 HISTORY_FILE = Path('/data/history.json')
 FEED_FILE = PUBLIC_DIR / 'feed.xml'
+AUTH_FILE = Path('/auth/storage_state.json')
+
+# Token expiry tracking
+TOKEN_EXPIRY_WARN_DAYS = int(os.getenv('TOKEN_EXPIRY_WARN_DAYS', '7'))
+_token_alert_sent_at = None  # Track last alert to prevent spam
 
 # Ensure directories exist
 EPISODES_DIR.mkdir(parents=True, exist_ok=True)
@@ -81,6 +86,35 @@ def recover_history_from_disk(history: dict) -> dict:
 def save_history(history):
     with open(HISTORY_FILE, 'w') as f:
         json.dump(history, f, indent=2)
+
+def get_token_expiry():
+    """Extract the earliest cookie expiry timestamp from storage_state.json.
+    Returns: (expires_at_unix, expires_in_days, expires_at_iso) or (None, None, None)"""
+    if not AUTH_FILE.exists():
+        return None, None, None
+    
+    try:
+        with open(AUTH_FILE, 'r') as f:
+            storage_state = json.load(f)
+        
+        cookies = storage_state.get('cookies', [])
+        if not cookies:
+            return None, None, None
+        
+        # Find earliest expiry (most urgent)
+        earliest_expires = min((c.get('expires') for c in cookies if c.get('expires')), default=None)
+        
+        if earliest_expires is None:
+            return None, None, None
+        
+        expires_at = datetime.fromtimestamp(earliest_expires, tz=timezone.utc)
+        now = datetime.now(timezone.utc)
+        days_remaining = (expires_at - now).days
+        
+        return int(earliest_expires), days_remaining, expires_at.isoformat()
+    except Exception as e:
+        logger.warning(f"Failed to extract token expiry: {e}")
+        return None, None, None
 
 def download_wav_bytes(artifact_id, wav_data):
     """Save WAV bytes to a temporary file."""
@@ -132,6 +166,51 @@ async def fire_webhook(episode_title: str, notebook: str):
                     logger.warning(f"Webhook returned {resp.status}")
     except Exception as e:
         logger.warning(f"Webhook failed: {e}")
+
+async def check_token_expiry_and_notify():
+    """Check if token is expiring soon and send notification if needed."""
+    global _token_alert_sent_at
+    
+    if not WEBHOOK_URL:
+        return
+    
+    token_expires_at, days_remaining, _ = get_token_expiry()
+    
+    if token_expires_at is None or days_remaining is None:
+        return
+    
+    # Only alert if within the warning threshold
+    if days_remaining > TOKEN_EXPIRY_WARN_DAYS:
+        return
+    
+    now = time.time()
+    # Prevent spam: only send once per 24 hours
+    if _token_alert_sent_at and (now - _token_alert_sent_at) < 86400:
+        return
+    
+    _token_alert_sent_at = now
+    
+    if days_remaining < 0:
+        message = "NotebookLM token has EXPIRED — please renew it"
+        title = "Token expired"
+    elif days_remaining == 0:
+        message = "NotebookLM token expires TODAY — please renew it"
+        title = "Token expires today"
+    else:
+        message = f"NotebookLM token expires in {days_remaining} day(s) — please renew it"
+        title = f"Token expires in {days_remaining} day(s)"
+    
+    payload = {'title': title, 'message': message, 'tags': ['warning']}
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(WEBHOOK_URL, json=payload, headers=WEBHOOK_HEADERS) as resp:
+                if resp.status >= 400:
+                    logger.warning(f"Token expiry webhook returned {resp.status}")
+                else:
+                    logger.info(f"Sent token expiry notification: {days_remaining} days remaining")
+    except Exception as e:
+        logger.warning(f"Token expiry webhook failed: {e}")
 
 def rebuild_feed(history):
     """Rebuild the RSS feed from the history."""
@@ -329,6 +408,9 @@ async def main_async():
             history = purge_old_episodes(history)
             save_history(history)
             rebuild_feed(history)
+            
+            # Check token expiry and send notification if needed
+            await check_token_expiry_and_notify()
 
         except Exception as e:
             logger.error(f"Error in main loop: {e}")
@@ -358,11 +440,20 @@ async def handle_health(request):
 async def handle_status(request):
     history = load_history()
     now = time.time()
-    return web.json_response({
+    token_expires_at, token_expires_in_days, token_expires_at_iso = get_token_expiry()
+    
+    status = {
         'episodes': len(history),
         'last_updated': _last_updated,
         'next_poll_in': max(0, int(_next_poll_at - now)),
-    })
+    }
+    
+    if token_expires_at is not None:
+        status['token_expires_at'] = token_expires_at
+        status['token_expires_in_days'] = token_expires_in_days
+        status['token_expires_at_iso'] = token_expires_at_iso
+    
+    return web.json_response(status)
 
 
 async def handle_episodes(request):
