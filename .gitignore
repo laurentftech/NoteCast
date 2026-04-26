@@ -3,5 +3,13 @@ auth/
 data/
 public/episodes/
 public/feed.xml
-.spec-gen/decisions/
+.spec-gen/
+.claude/
 docker-compose.override.yml
+bridge/history.json
+.clinerules/
+.opencode/
+claude.md
+.github/copilot-instructions.md
+.github/hooks/rtk-rewrite.json
+.kilocode/rules/rtk-rules.md
