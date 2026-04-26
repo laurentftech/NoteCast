@@ -154,6 +154,23 @@ Paste this URL into Overcast, Pocket Casts, Apple Podcasts, or any RSS-capable a
 
 ---
 
+## Updating
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+That's it — Caddy and episode files are untouched. The bridge container is replaced with the new image.
+
+**On Synology (Container Manager UI)**
+1. *Registry* → search `ghcr.io/laurentftech/notecast` → Download latest
+2. *Container* → select `notecast-bridge` → Action → Stop → Clear → Start
+
+Or SSH into the NAS and run the two commands above from the folder where your `docker-compose.yml` lives.
+
+---
+
 ## Troubleshooting
 
 **Bridge exits immediately**
