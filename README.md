@@ -15,7 +15,7 @@ Turns your NotebookLM audio overviews into a personal podcast feed.
 NotebookLM → notebooklm-py → harvester.py → MP3 → RSS feed → Caddy (HTTPS)
 ```
 
-`notecast-bridge` polls all your notebooks every 5 minutes, downloads new audio artifacts, converts them to MP3, and updates an RSS feed you can subscribe to in any podcast app.
+`notecast-bridge` polls all your notebooks every day (customizable by env variable), downloads new audio artifacts, converts them to MP3, and updates an RSS feed you can subscribe to in any podcast app.
 
 ---
 
@@ -145,8 +145,6 @@ Paste this URL into Overcast, Pocket Casts, Apple Podcasts, or any RSS-capable a
 │   ├── index.html         # Web UI
 │   ├── feed.xml           # Generated RSS feed
 │   └── episodes/          # Converted MP3 files
-├── example/
-│   └── app.py             # Optional REST API wrapper (reference)
 ├── docker-compose.yml
 ├── Caddyfile
 └── .env                   # Your local config (not committed)
@@ -188,3 +186,4 @@ Most likely: credentials missing. Follow step 3 above.
 **HTTPS not working**
 - Verify `CADDY_DOMAIN` matches your DNS A record
 - Ports 80 and 443 must be open on your firewall
+- See Caddy [documentation](https://caddyserver.com) or [community](https://caddy.community) for more details
