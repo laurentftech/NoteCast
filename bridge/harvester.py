@@ -7,6 +7,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from podgen import Podcast, Episode, Media
+import aiohttp
 from aiohttp import web
 
 # Try to import the notebooklm client
@@ -24,6 +25,14 @@ RETENTION_DAYS = int(os.getenv('RETENTION_DAYS', '14'))
 BRIDGE_PORT = int(os.getenv('BRIDGE_PORT', '8080'))
 BRIDGE_API_KEY = os.getenv('BRIDGE_API_KEY', '')  # optional — set to restrict /auth/upload
 FEED_IMAGE_URL = os.getenv('FEED_IMAGE_URL', '')
+WEBHOOK_URL = os.getenv('WEBHOOK_URL', '')
+WEBHOOK_LINK = os.getenv('WEBHOOK_LINK', '')
+_webhook_headers_raw = os.getenv('WEBHOOK_HEADERS', '')
+try:
+    WEBHOOK_HEADERS = json.loads(_webhook_headers_raw) if _webhook_headers_raw else {}
+except json.JSONDecodeError:
+    WEBHOOK_HEADERS = {}
+    print(f"WARNING: WEBHOOK_HEADERS is not valid JSON, ignoring")
 
 # Paths
 PUBLIC_DIR = Path('/public')
@@ -108,6 +117,21 @@ def get_duration(path):
         return int(float(result.stdout.strip()))
     except Exception:
         return None
+
+async def fire_webhook(episode_title: str, notebook: str):
+    if not WEBHOOK_URL:
+        return
+    message = f"{episode_title} — {notebook}" if notebook else episode_title
+    payload = {'title': 'New NoteCast episode', 'message': message, 'tags': ['headphones']}
+    if WEBHOOK_LINK:
+        payload['click'] = WEBHOOK_LINK
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(WEBHOOK_URL, json=payload, headers=WEBHOOK_HEADERS) as resp:
+                if resp.status >= 400:
+                    logger.warning(f"Webhook returned {resp.status}")
+    except Exception as e:
+        logger.warning(f"Webhook failed: {e}")
 
 def rebuild_feed(history):
     """Rebuild the RSS feed from the history."""
@@ -300,6 +324,7 @@ async def main_async():
                         logger.info(f"Successfully processed artifact {artifact_id}")
                         save_history(history)
                         rebuild_feed(history)
+                        await fire_webhook(title, notebook_title)
 
             history = purge_old_episodes(history)
             save_history(history)

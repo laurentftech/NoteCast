@@ -111,6 +111,9 @@ Paste this URL into Overcast, Pocket Casts, Apple Podcasts, or any RSS-capable a
 | `BRIDGE_API_KEY` | no | *(none)* | If set, protects `/auth/upload` and `/api/poll` — requests must include `X-Api-Key: <value>` |
 | `FEED_IMAGE_URL` | no | *(none)* | Cover art URL for the RSS feed (1400×1400px recommended); auto-detected from `public/cover.jpg` if absent |
 | `BRIDGE_PORT` | no | `8080` | Internal HTTP port for the bridge |
+| `WEBHOOK_URL` | no | *(none)* | HTTP endpoint to POST when a new episode is downloaded (ntfy, Slack, Discord, …) |
+| `WEBHOOK_HEADERS` | no | *(none)* | JSON object of headers sent with each webhook request — e.g. `{"Authorization": "Bearer token"}` |
+| `WEBHOOK_LINK` | no | *(none)* | URL included as `click` field in ntfy notifications (e.g. Apple Podcasts deep link) |
 
 ---
 
