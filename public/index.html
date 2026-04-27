@@ -559,6 +559,18 @@
       font-weight: 500;
     }
 
+    @media (max-height: 700px), (max-width: 390px) {
+      .modal { padding: 16px; }
+      .modal-header { margin-bottom: 12px; }
+      .stat-grid { gap: 7px; margin-bottom: 14px; }
+      .stat { padding: 10px 12px; }
+      .stat-value { font-size: 18px; }
+      .stat-label { font-size: 10.5px; margin-top: 2px; }
+      .upload-area { padding: 12px; }
+      .upload-area p { font-size: 12px; margin-bottom: 8px; }
+      .btn { padding: 7px 12px; font-size: 13px; }
+    }
+
     .section-label {
       font-size: 11px;
       font-weight: 600;
@@ -770,6 +782,14 @@
     <button class="btn btn-accent" id="pollNowBtn" style="width:100%;justify-content:center;margin-bottom:18px;">
       Check now
     </button>
+
+    <div class="webhook-row" id="webhookRow" style="display:none;margin-bottom:18px;align-items:center;gap:10px;">
+      <span id="webhookBadge" style="flex:1;font-size:13px;display:flex;align-items:center;gap:6px;">
+        <span id="webhookDot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent)"></span>
+        <span id="webhookLabel">Webhook</span>
+      </span>
+      <button class="btn" id="webhookTestBtn" style="padding:6px 12px;font-size:12px;">Test</button>
+    </div>
 
     <div class="section-label">RSS Feed</div>
     <div class="rss-row">
@@ -998,6 +1018,16 @@
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') overlay.classList.remove('open'); });
 
+  document.getElementById('webhookTestBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('webhookTestBtn');
+    btn.textContent = 'Sending…'; btn.disabled = true;
+    try {
+      const r = await fetch('/api/webhook/test', { method: 'POST' });
+      btn.textContent = r.ok ? 'Sent!' : 'Error';
+    } catch { btn.textContent = 'Error'; }
+    setTimeout(() => { btn.textContent = 'Test'; btn.disabled = false; }, 2000);
+  });
+
   document.getElementById('pollNowBtn').addEventListener('click', async () => {
     const btn = document.getElementById('pollNowBtn');
     btn.textContent = 'Checking…';
@@ -1019,6 +1049,8 @@
       document.getElementById('statNextPoll').textContent = fmtCountdown(s.next_poll_in);
       document.getElementById('statUpdated').textContent = s.last_updated ? relTime(s.last_updated) : '—';
       if (s.version) document.getElementById('appVersion').textContent = s.version;
+      const webhookRow = document.getElementById('webhookRow');
+      webhookRow.style.display = s.webhook_enabled ? 'flex' : 'none';
       
       // Update token expiry with warning colors
       const tokenElem = document.getElementById('statTokenExpiry');

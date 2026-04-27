@@ -449,6 +449,7 @@ async def handle_status(request):
         'episodes': len(history),
         'last_updated': _last_updated,
         'next_poll_in': max(0, int(_next_poll_at - now)),
+        'webhook_enabled': bool(WEBHOOK_URL),
     }
     
     if token_expires_at is not None:
@@ -489,6 +490,17 @@ async def handle_poll(request):
     return web.json_response({'ok': True})
 
 
+async def handle_webhook_test(request):
+    if BRIDGE_API_KEY:
+        key = request.headers.get('X-Api-Key', '')
+        if key != BRIDGE_API_KEY:
+            return web.json_response({'ok': False, 'error': 'Unauthorized'}, status=401)
+    if not WEBHOOK_URL:
+        return web.json_response({'ok': False, 'error': 'WEBHOOK_URL not configured'}, status=400)
+    await _post_webhook('NoteCast test', 'Webhook is working correctly')
+    return web.json_response({'ok': True})
+
+
 async def handle_auth_upload(request):
     if BRIDGE_API_KEY:
         key = request.headers.get('X-Api-Key', '')
@@ -513,6 +525,7 @@ async def run_http_server():
     app.router.add_get('/api/status', handle_status)
     app.router.add_get('/api/episodes', handle_episodes)
     app.router.add_post('/api/poll', handle_poll)
+    app.router.add_post('/api/webhook/test', handle_webhook_test)
     app.router.add_post('/auth/upload', handle_auth_upload)
     runner = web.AppRunner(app)
     await runner.setup()
