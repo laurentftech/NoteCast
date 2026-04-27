@@ -499,6 +499,9 @@
       border: 1px solid var(--border);
       border-radius: var(--radius-xl);
       width: 100%; max-width: 440px;
+      max-height: 90dvh;
+      overflow-y: auto;
+      overscroll-behavior: contain;
       padding: 22px;
       box-shadow: var(--shadow-lg);
       animation: slideUp .25s cubic-bezier(.16,.84,.44,1);
@@ -852,7 +855,8 @@
   function fmtCountdown(s) {
     if (s <= 0) return 'soon';
     if (s < 60) return `${s}s`;
-    return `${Math.floor(s / 60)}m`;
+    if (s < 3600) return `${Math.floor(s / 60)}m`;
+    return `${Math.floor(s / 3600)}h`;
   }
   function escapeHtml(str) {
     return String(str ?? '').replace(/[&<>"']/g, c => (
