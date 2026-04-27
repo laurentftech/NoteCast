@@ -153,20 +153,27 @@ def get_duration(path):
     except Exception:
         return None
 
-async def fire_webhook(episode_title: str, notebook: str):
-    if not WEBHOOK_URL:
-        return
-    message = f"{episode_title} — {notebook}" if notebook else episode_title
-    payload = {'title': 'New NoteCast episode', 'message': message, 'tags': ['headphones']}
+async def _post_webhook(title: str, message: str):
+    headers = {
+        'X-Title': title,
+        'X-Tags': 'headphones',
+        **WEBHOOK_HEADERS,
+    }
     if WEBHOOK_LINK:
-        payload['click'] = WEBHOOK_LINK
+        headers['X-Click'] = WEBHOOK_LINK
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.post(WEBHOOK_URL, json=payload, headers=WEBHOOK_HEADERS) as resp:
+            async with session.post(WEBHOOK_URL, data=message.encode(), headers=headers) as resp:
                 if resp.status >= 400:
                     logger.warning(f"Webhook returned {resp.status}")
     except Exception as e:
         logger.warning(f"Webhook failed: {e}")
+
+async def fire_webhook(episode_title: str, notebook: str):
+    if not WEBHOOK_URL:
+        return
+    message = f"{episode_title} — {notebook}" if notebook else episode_title
+    await _post_webhook('New NoteCast episode', message)
 
 async def check_token_expiry_and_notify():
     """Check if token is expiring soon and send notification if needed."""
@@ -201,17 +208,8 @@ async def check_token_expiry_and_notify():
         message = f"NotebookLM token expires in {days_remaining} day(s) — please renew it"
         title = f"Token expires in {days_remaining} day(s)"
     
-    payload = {'title': title, 'message': message, 'tags': ['warning']}
-    
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(WEBHOOK_URL, json=payload, headers=WEBHOOK_HEADERS) as resp:
-                if resp.status >= 400:
-                    logger.warning(f"Token expiry webhook returned {resp.status}")
-                else:
-                    logger.info(f"Sent token expiry notification: {days_remaining} days remaining")
-    except Exception as e:
-        logger.warning(f"Token expiry webhook failed: {e}")
+    await _post_webhook(title, message)
+    logger.info(f"Sent token expiry notification: {days_remaining} days remaining")
 
 def rebuild_feed(history):
     """Rebuild the RSS feed from the history."""
