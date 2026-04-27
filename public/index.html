@@ -1010,13 +1010,19 @@
 
   // ── Admin ─────────────────────────────────────────
   const overlay = document.getElementById('overlay');
-  document.getElementById('adminBtn').addEventListener('click', () => {
+  function openAdmin() {
     overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
     loadStatus();
-  });
-  document.getElementById('closeAdmin').addEventListener('click', () => overlay.classList.remove('open'));
-  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') overlay.classList.remove('open'); });
+  }
+  function closeAdmin() {
+    overlay.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  document.getElementById('adminBtn').addEventListener('click', openAdmin);
+  document.getElementById('closeAdmin').addEventListener('click', closeAdmin);
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeAdmin(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAdmin(); });
 
   document.getElementById('webhookTestBtn').addEventListener('click', async () => {
     const btn = document.getElementById('webhookTestBtn');
