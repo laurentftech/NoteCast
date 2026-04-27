@@ -1061,7 +1061,7 @@
       document.getElementById('statEpisodes').textContent = s.episodes;
       document.getElementById('statNextPoll').textContent = fmtCountdown(s.next_poll_in);
       document.getElementById('statUpdated').textContent = s.last_updated ? relTime(s.last_updated) : '—';
-      if (s.version) document.getElementById('appVersion').textContent = s.version;
+      if (s.version) document.getElementById('appVersion').textContent = `NoteCast ${s.version}`;
       const webhookRow = document.getElementById('webhookRow');
       webhookRow.style.display = s.webhook_enabled ? 'flex' : 'none';
       
