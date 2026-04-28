@@ -1023,11 +1023,17 @@
   tryLoadCover();
 
   // ── Episodes ─────────────────────────────────────
+  let _lastEpisodesKey = null;
+
   async function loadEpisodes() {
     const list = document.getElementById('episodes');
     try {
       const res = await authFetch('/api/episodes');
-      episodes = await res.json();
+      const fresh = await res.json();
+      const key = JSON.stringify(fresh.map(e => e.id + e.created_at));
+      if (key === _lastEpisodesKey) return;
+      _lastEpisodesKey = key;
+      episodes = fresh;
       const countText = episodes.length === 1 ? '1 episode' : `${episodes.length} episodes`;
       document.getElementById('subtitle').textContent = countText;
       document.getElementById('sectionCount').textContent = countText;
