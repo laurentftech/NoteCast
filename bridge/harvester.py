@@ -33,9 +33,9 @@ WEBHOOK_LINK = os.getenv('WEBHOOK_LINK', '')
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
 TOKEN_EXPIRY_WARN_DAYS = int(os.getenv('TOKEN_EXPIRY_WARN_DAYS', '7'))
 
-_webhook_headers_raw = os.getenv('WEBHOOK_HEADERS', '')
+_wh_raw = os.getenv('WEBHOOK_HEADERS', '')
 try:
-    WEBHOOK_HEADERS = json.loads(_webhook_headers_raw) if _webhook_headers_raw else {}
+    WEBHOOK_HEADERS: dict = json.loads(_wh_raw) if _wh_raw else {}
 except json.JSONDecodeError:
     WEBHOOK_HEADERS = {}
     print("WARNING: WEBHOOK_HEADERS is not valid JSON, ignoring")
@@ -59,6 +59,23 @@ class User:
     episodes_dir: Path
     feed_file: Path
     feed_token: str
+    webhook_url: str = ''
+    webhook_headers: dict = None
+    webhook_link: str = ''
+
+    def __post_init__(self):
+        if self.webhook_headers is None:
+            self.webhook_headers = {}
+
+
+def _parse_webhook_headers(raw: str) -> dict:
+    if not raw:
+        return {}
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        logger.warning("WEBHOOK_HEADERS is not valid JSON, ignoring")
+        return {}
 
 
 def _load_or_generate_feed_token(token_file: Path) -> str:
@@ -85,6 +102,9 @@ def _build_users() -> list[User]:
             episodes_dir=PUBLIC_DIR / 'episodes',
             feed_file=PUBLIC_DIR / 'feed.xml',
             feed_token=token,
+            webhook_url=WEBHOOK_URL,
+            webhook_headers=WEBHOOK_HEADERS,
+            webhook_link=WEBHOOK_LINK,
         )]
 
     users = []
@@ -92,15 +112,23 @@ def _build_users() -> list[User]:
         key = name.upper()
         email = os.getenv(f'USER_{key}_EMAIL', '')
         token = _load_or_generate_feed_token(Path(f'/data/{name}/.feed_token'))
+        # Per-user webhook, fallback to global
+        wh_url = os.getenv(f'USER_{key}_WEBHOOK_URL', WEBHOOK_URL)
+        wh_headers = _parse_webhook_headers(
+            os.getenv(f'USER_{key}_WEBHOOK_HEADERS', os.getenv('WEBHOOK_HEADERS', ''))
+        )
+        wh_link = os.getenv(f'USER_{key}_WEBHOOK_LINK', WEBHOOK_LINK)
         users.append(User(
             name=name,
             email=email,
-            # Auth files live under the same docker volume, per-user subdir
             auth_file=_DEFAULT_AUTH_FILE.parent / name / 'storage_state.json',
             history_file=Path(f'/data/{name}/history.json'),
             episodes_dir=PUBLIC_DIR / 'episodes' / name,
             feed_file=PUBLIC_DIR / 'feed' / f'{token}.xml',
             feed_token=token,
+            webhook_url=wh_url,
+            webhook_headers=wh_headers,
+            webhook_link=wh_link,
         ))
     return users
 
@@ -229,7 +257,7 @@ _token_alert_sent: dict[str, float] = {}  # user_name → last sent timestamp
 
 
 async def check_token_expiry_and_notify(user: User):
-    if not WEBHOOK_URL:
+    if not user.webhook_url:
         return
     _, days_remaining, _ = get_token_expiry(user.auth_file)
     if days_remaining is None or days_remaining > TOKEN_EXPIRY_WARN_DAYS:
@@ -246,7 +274,7 @@ async def check_token_expiry_and_notify(user: User):
     else:
         title = f"Token expires in {days_remaining}d"
         message = f"{prefix}NotebookLM token expires in {days_remaining} day(s)"
-    await _post_webhook(title, message)
+    await _post_webhook(user, title, message)
     logger.info(f"[{user.name}] Sent token expiry notification: {days_remaining} days remaining")
 
 
@@ -281,24 +309,24 @@ def get_duration(path):
 
 # ── Webhook ────────────────────────────────────────────────────────────────
 
-async def _post_webhook(title: str, message: str):
-    headers = {'X-Title': title, 'X-Tags': 'headphones', **WEBHOOK_HEADERS}
-    if WEBHOOK_LINK:
-        headers['X-Click'] = WEBHOOK_LINK
+async def _post_webhook(user: 'User', title: str, message: str):
+    headers = {'X-Title': title, 'X-Tags': 'headphones', **user.webhook_headers}
+    if user.webhook_link:
+        headers['X-Click'] = user.webhook_link
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.post(WEBHOOK_URL, data=message.encode(), headers=headers) as resp:
+            async with session.post(user.webhook_url, data=message.encode(), headers=headers) as resp:
                 if resp.status >= 400:
-                    logger.warning(f"Webhook returned {resp.status}")
+                    logger.warning(f"[{user.name}] Webhook returned {resp.status}")
     except Exception as e:
-        logger.warning(f"Webhook failed: {e}")
+        logger.warning(f"[{user.name}] Webhook failed: {e}")
 
 
-async def fire_webhook(episode_title: str, notebook: str):
-    if not WEBHOOK_URL:
+async def fire_webhook(user: 'User', episode_title: str, notebook: str):
+    if not user.webhook_url:
         return
     message = f"{episode_title} — {notebook}" if notebook else episode_title
-    await _post_webhook('New NoteCast episode', message)
+    await _post_webhook(user, 'New NoteCast episode', message)
 
 
 # ── Feed ───────────────────────────────────────────────────────────────────
@@ -472,7 +500,7 @@ async def harvest_user(user: User):
                     logger.info(f"[{user.name}] Processed {artifact_id}")
                     save_history(history, user.history_file)
                     rebuild_feed(history, user)
-                    await fire_webhook(title, notebook_title)
+                    await fire_webhook(user, title, notebook_title)
 
         history = purge_old_episodes(history, user.episodes_dir)
         save_history(history, user.history_file)
@@ -553,7 +581,7 @@ async def handle_status(request):
         'episodes': len(history),
         'last_updated': _last_updated,
         'next_poll_in': max(0, int(_next_poll_at - now)),
-        'webhook_enabled': bool(WEBHOOK_URL),
+        'webhook_enabled': bool(user.webhook_url),
         'feed_url': feed_url,
     }
     if token_expires_in_days is not None:
@@ -602,9 +630,9 @@ async def handle_webhook_test(request):
     user = await get_request_user(request)
     if user is None:
         return web.json_response({'ok': False, 'error': 'Unauthorized'}, status=401)
-    if not WEBHOOK_URL:
+    if not user.webhook_url:
         return web.json_response({'ok': False, 'error': 'WEBHOOK_URL not configured'}, status=400)
-    await _post_webhook('NoteCast test', 'Webhook is working correctly')
+    await _post_webhook(user, 'NoteCast test', 'Webhook is working correctly')
     return web.json_response({'ok': True})
 
 
