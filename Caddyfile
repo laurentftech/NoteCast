@@ -11,6 +11,18 @@
         reverse_proxy notecast-bridge:8080
     }
 
+    handle /index.html {
+        root * /srv
+        file_server
+        header Cache-Control "no-store"
+    }
+
+    handle / {
+        root * /srv
+        file_server
+        header Cache-Control "no-store"
+    }
+
     handle {
         root * /srv
         file_server
