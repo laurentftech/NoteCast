@@ -4,8 +4,7 @@ services:
     restart: unless-stopped
     container_name: notecast-bridge
     env_file:
-      - path: .env
-        required: false
+      - .env
     ports:
       - "8080:8080"
     volumes:
