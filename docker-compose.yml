@@ -3,6 +3,9 @@ services:
     image: ghcr.io/laurentftech/notecast:latest
     restart: unless-stopped
     container_name: notecast-bridge
+    env_file:
+      - path: .env
+        required: false
     ports:
       - "8080:8080"
     volumes:
@@ -16,6 +19,12 @@ services:
       - BRIDGE_PORT=8080
       - BRIDGE_API_KEY
       - FEED_IMAGE_URL
+      - USERS
+      - GOOGLE_CLIENT_ID
+      - WEBHOOK_URL
+      - WEBHOOK_HEADERS
+      - WEBHOOK_LINK
+      - TOKEN_EXPIRY_WARN_DAYS
 
   caddy:
     image: caddy:2-alpine
