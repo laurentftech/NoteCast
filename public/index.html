@@ -1242,7 +1242,7 @@
     const fd = new FormData();
     fd.append('file', file);
     try {
-      const res = await fetch('/auth/upload', { method: 'POST', body: fd });
+      const res = await authFetch('/auth/upload', { method: 'POST', body: fd });
       const json = await res.json();
       result.textContent = json.ok ? '✓ Credentials updated' : json.error;
       result.className = 'upload-result ' + (json.ok ? 'ok' : 'err');
