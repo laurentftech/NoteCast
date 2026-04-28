@@ -829,9 +829,12 @@
     </div>
 
     <div style="margin-top:22px">
-      <div class="section-label">Re-authenticate</div>
-      <div class="upload-area">
-        <p>Upload <code>storage_state.json</code> from your Mac</p>
+      <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
+        NotebookLM Session
+        <span id="sessionBadge" style="font-size:11px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--text-3)">—</span>
+      </div>
+      <div class="upload-area" id="uploadArea">
+        <p>Drop or choose <code>storage_state.json</code> to renew credentials</p>
         <label class="btn" style="cursor:pointer">
           Choose file
           <input type="file" id="authFile" accept=".json,application/json">
@@ -1202,29 +1205,42 @@
       const webhookRow = document.getElementById('webhookRow');
       webhookRow.style.display = s.webhook_enabled ? 'flex' : 'none';
       
-      // Update token expiry with warning colors
+      // Update token expiry with warning colors + session badge
       const tokenElem = document.getElementById('statTokenExpiry');
+      const badge = document.getElementById('sessionBadge');
       if (s.token_expires_in_days !== undefined) {
         const days = s.token_expires_in_days;
         if (days < 0) {
           tokenElem.textContent = 'Expired ⚠️';
           tokenElem.style.color = '#dc2626';
+          badge.textContent = '⚠️ Expired — upload new credentials';
+          badge.style.color = '#dc2626';
         } else if (days === 0) {
           tokenElem.textContent = 'Expires today ⚠️';
           tokenElem.style.color = '#dc2626';
+          badge.textContent = '⚠️ Expires today';
+          badge.style.color = '#dc2626';
         } else if (days === 1) {
           tokenElem.textContent = 'Tomorrow ⚠️';
           tokenElem.style.color = '#dc2626';
+          badge.textContent = '⚠️ Expires tomorrow';
+          badge.style.color = '#dc2626';
         } else if (days < 7) {
           tokenElem.textContent = `${days} days ⚠️`;
           tokenElem.style.color = '#ea580c';
+          badge.textContent = `⚠️ Expires in ${days} days`;
+          badge.style.color = '#ea580c';
         } else {
           tokenElem.textContent = `${days} days`;
           tokenElem.style.color = 'var(--text)';
+          badge.textContent = `✓ Valid · ${days} days`;
+          badge.style.color = '#16a34a';
         }
       } else {
         tokenElem.textContent = '—';
         tokenElem.style.color = 'var(--text)';
+        badge.textContent = 'No credentials';
+        badge.style.color = 'var(--text-3)';
       }
     } catch {}
   }
@@ -1251,6 +1267,19 @@
   const authFile = document.getElementById('authFile');
   authFile.addEventListener('change', () => {
     document.getElementById('authFilename').textContent = authFile.files[0]?.name || '';
+  });
+
+  const uploadArea = document.getElementById('uploadArea');
+  uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.style.borderColor = 'var(--accent)'; uploadArea.style.background = 'var(--accent-softer)'; });
+  uploadArea.addEventListener('dragleave', () => { uploadArea.style.borderColor = ''; uploadArea.style.background = ''; });
+  uploadArea.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadArea.style.borderColor = ''; uploadArea.style.background = '';
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    const dt = new DataTransfer(); dt.items.add(file);
+    authFile.files = dt.files;
+    document.getElementById('authFilename').textContent = file.name;
   });
 
   document.getElementById('uploadBtn').addEventListener('click', async () => {
