@@ -127,25 +127,22 @@ USER_BOB_EMAIL=bob@gmail.com
 # Google OAuth client ID (enables sign-in button in the web UI)
 GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 
-# Optional: per-user webhooks (falls back to global WEBHOOK_URL if not set)
-USER_ALICE_WEBHOOK_URL=https://ntfy.sh/alice-notecast
-USER_BOB_WEBHOOK_URL=https://ntfy.sh/bob-notecast
+# Optional: per-user webhooks (fall back to global WEBHOOK_URL if not set)
+# USER_ALICE_WEBHOOK_URL=https://ntfy.sh/alice-notecast
+# USER_BOB_WEBHOOK_URL=https://ntfy.sh/bob-notecast
 ```
 
 ### 3. Authenticate each user
 
-Each user must authenticate separately. Run `notebooklm login` for each account and upload to their slot:
+Each user must authenticate separately. Run `notebooklm login` for each account, then place the credentials in the right slot:
 
 ```bash
-# Upload for alice
-curl -X POST https://podcast.yourdomain.com/auth/upload \
-     -H "X-Api-Key: yourkey" \
-     -H "X-User: alice" \
-     -F "file=@storage_state_alice.json"
-
-# Or copy directly on the server
+# Copy directly on the server (simplest)
 cp storage_state_alice.json ./auth/alice/storage_state.json
+cp storage_state_bob.json   ./auth/bob/storage_state.json
 ```
+
+Alternatively, each user can upload via the web UI: sign in with Google, open the admin panel, and use the **Re-authenticate** section. The file is saved to that user's slot automatically.
 
 ### 4. Subscribe
 
