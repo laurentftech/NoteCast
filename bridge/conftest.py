@@ -3,11 +3,8 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 # Stub heavy/unavailable dependencies so harvester.py can be imported without Docker
-for mod in ("podgen", "aiohttp", "aiohttp.web", "playwright", "notebooklm"):
+for mod in ("podgen", "playwright", "notebooklm"):
     sys.modules.setdefault(mod, MagicMock())
-
-import aiohttp
-aiohttp.web = sys.modules["aiohttp.web"]
 
 # Suppress module-level EPISODES_DIR.mkdir() which tries to create /public/episodes
 _orig_mkdir = Path.mkdir
