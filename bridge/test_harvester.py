@@ -29,9 +29,8 @@ def test_purge_keeps_recent_episode(tmp_path):
     mp3 = tmp_path / "ep.m4a"
     mp3.write_bytes(b"")
     history = {"a1": make_entry(downloaded_at=iso(days_ago(3)), mp3_filename="ep.m4a")}
-    with patch.object(harvester, "EPISODES_DIR", tmp_path), \
-         patch.object(harvester, "RETENTION_DAYS", 14):
-        result = harvester.purge_old_episodes(history)
+    with patch.object(harvester, "RETENTION_DAYS", 14):
+        result = harvester.purge_old_episodes(history, tmp_path)
     assert "a1" in result
     assert mp3.exists()
 
@@ -40,9 +39,8 @@ def test_purge_removes_old_episode(tmp_path):
     mp3 = tmp_path / "old.m4a"
     mp3.write_bytes(b"")
     history = {"a2": make_entry(downloaded_at=iso(days_ago(20)), mp3_filename="old.m4a")}
-    with patch.object(harvester, "EPISODES_DIR", tmp_path), \
-         patch.object(harvester, "RETENTION_DAYS", 14):
-        result = harvester.purge_old_episodes(history)
+    with patch.object(harvester, "RETENTION_DAYS", 14):
+        result = harvester.purge_old_episodes(history, tmp_path)
     assert "a2" not in result
     assert not mp3.exists()
 
@@ -56,9 +54,8 @@ def test_purge_uses_downloaded_at_not_created_at(tmp_path):
         created_at=iso(days_ago(30)),     # created 30 days ago — would wrongly purge
         mp3_filename="fresh.m4a",
     )}
-    with patch.object(harvester, "EPISODES_DIR", tmp_path), \
-         patch.object(harvester, "RETENTION_DAYS", 14):
-        result = harvester.purge_old_episodes(history)
+    with patch.object(harvester, "RETENTION_DAYS", 14):
+        result = harvester.purge_old_episodes(history, tmp_path)
     assert "a3" in result, "Episode downloaded recently must not be purged"
 
 def test_purge_falls_back_to_created_at(tmp_path):
@@ -66,9 +63,8 @@ def test_purge_falls_back_to_created_at(tmp_path):
     mp3 = tmp_path / "old2.m4a"
     mp3.write_bytes(b"")
     history = {"a4": make_entry(created_at=iso(days_ago(20)), mp3_filename="old2.m4a")}
-    with patch.object(harvester, "EPISODES_DIR", tmp_path), \
-         patch.object(harvester, "RETENTION_DAYS", 14):
-        result = harvester.purge_old_episodes(history)
+    with patch.object(harvester, "RETENTION_DAYS", 14):
+        result = harvester.purge_old_episodes(history, tmp_path)
     assert "a4" not in result
 
 
@@ -79,8 +75,7 @@ def test_recover_adds_untracked_mp3(tmp_path):
     mp3 = tmp_path / "abc12345.mp3"
     mp3.write_bytes(b"")
     history = {}
-    with patch.object(harvester, "EPISODES_DIR", tmp_path):
-        harvester.recover_history_from_disk(history)
+    harvester.recover_history_from_disk(history, tmp_path)
     assert "abc12345" in history
     assert history["abc12345"]["mp3_filename"] == "abc12345.mp3"
 
@@ -89,17 +84,15 @@ def test_recover_skips_already_tracked(tmp_path):
     mp3 = tmp_path / "known.mp3"
     mp3.write_bytes(b"")
     history = {"x": {"mp3_filename": "known.mp3", "title": "T", "created_at": "", "notebook": ""}}
-    with patch.object(harvester, "EPISODES_DIR", tmp_path):
-        harvester.recover_history_from_disk(history)
-    assert len(history) == 1  # no duplicate added
+    harvester.recover_history_from_disk(history, tmp_path)
+    assert len(history) == 1
 
 
 # ── get_token_expiry ────────────────────────────────────────────────────────
 
 def test_token_expiry_missing_file(tmp_path):
     import harvester
-    with patch.object(harvester, "AUTH_FILE", tmp_path / "missing.json"):
-        ts, days, iso_str = harvester.get_token_expiry()
+    ts, days, iso_str = harvester.get_token_expiry(tmp_path / "missing.json")
     assert ts is None and days is None and iso_str is None
 
 def test_token_expiry_reads_earliest_cookie(tmp_path):
@@ -112,8 +105,7 @@ def test_token_expiry_reads_earliest_cookie(tmp_path):
     ]}
     f = tmp_path / "storage_state.json"
     f.write_text(json.dumps(auth))
-    with patch.object(harvester, "AUTH_FILE", f):
-        ts, days, iso_str = harvester.get_token_expiry()
+    ts, days, iso_str = harvester.get_token_expiry(f)
     assert ts == int(future.timestamp())
     assert 9 <= days <= 10
 
@@ -121,6 +113,5 @@ def test_token_expiry_no_cookies(tmp_path):
     import harvester
     f = tmp_path / "storage_state.json"
     f.write_text(json.dumps({"cookies": []}))
-    with patch.object(harvester, "AUTH_FILE", f):
-        ts, days, _ = harvester.get_token_expiry()
+    ts, days, _ = harvester.get_token_expiry(f)
     assert ts is None
