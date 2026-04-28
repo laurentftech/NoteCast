@@ -1053,7 +1053,7 @@
       }
 
       list.innerHTML = episodes.map(ep => `
-        <div class="episode" id="ep-${escapeHtml(ep.id)}" data-id="${escapeHtml(ep.id)}" data-filename="${escapeHtml(ep.filename)}">
+        <div class="episode" id="ep-${escapeHtml(ep.id)}" data-id="${escapeHtml(ep.id)}" data-url="${escapeHtml(ep.url)}">
           <button class="play-btn" aria-label="Play ${escapeHtml(ep.title)}">
             <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
             <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
@@ -1072,7 +1072,7 @@
       list.querySelectorAll('.episode').forEach(el => {
         el.addEventListener('click', () => playEpisode(
           el.dataset.id,
-          `/episodes/${el.dataset.filename}`,
+          el.dataset.url,
           el.querySelector('.ep-title').textContent
         ));
       });
@@ -1141,7 +1141,7 @@
     const idx = episodes.findIndex(e => e.id === currentId);
     if (idx >= 0 && idx < episodes.length - 1) {
       const next = episodes[idx + 1];
-      playEpisode(next.id, `/episodes/${next.filename}`, next.title);
+      playEpisode(next.id, next.url, next.title);
     }
   });
 
