@@ -215,14 +215,14 @@ def save_history(history: dict, history_file: Path):
 def recover_history_from_disk(history: dict, episodes_dir: Path):
     known_filenames = {v['mp3_filename'] for v in history.values()}
     recovered = 0
-    for mp3 in episodes_dir.glob('*.mp3'):
-        if mp3.name not in known_filenames:
-            artifact_id = mp3.stem
-            mtime = datetime.fromtimestamp(mp3.stat().st_mtime, tz=timezone.utc).isoformat()
+    for f in [*episodes_dir.glob('*.m4a'), *episodes_dir.glob('*.mp3')]:
+        if f.name not in known_filenames:
+            artifact_id = f.stem
+            mtime = datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc).isoformat()
             history[artifact_id] = {
-                'title': f'Episode {mp3.stem[:8]}',
+                'title': f'Episode {f.stem[:8]}',
                 'created_at': mtime,
-                'mp3_filename': mp3.name,
+                'mp3_filename': f.name,
                 'notebook': '',
             }
             recovered += 1
