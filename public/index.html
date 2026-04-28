@@ -906,10 +906,15 @@
 
   document.getElementById('signOutBtn').addEventListener('click', () => {
     _googleToken = null;
+    localStorage.removeItem('gToken');
     if (typeof google !== 'undefined') google.accounts.id.disableAutoSelect();
     showSignIn();
     google.accounts.id.prompt();
   });
+
+  function _decodeJwtPayload(token) {
+    return JSON.parse(atob(token.split('.')[1]));
+  }
 
   async function initAuth() {
     const cfg = await fetch('/api/config').then(r => r.json()).catch(() => ({}));
@@ -917,6 +922,20 @@
       showApp();
       loadEpisodes();
       return;
+    }
+    // Restore cached token if still valid (exp > now + 60s)
+    const cached = localStorage.getItem('gToken');
+    if (cached) {
+      try {
+        const payload = _decodeJwtPayload(cached);
+        if (payload.exp * 1000 > Date.now() + 60000) {
+          _googleToken = cached;
+          showApp(payload.email);
+          loadEpisodes();
+          return;
+        }
+      } catch {}
+      localStorage.removeItem('gToken');
     }
     // Multi-user: hide app until signed in
     showSignIn();
@@ -929,9 +948,9 @@
     });
     window._handleGoogleToken = (response) => {
       _googleToken = response.credential;
-      // Decode email from JWT payload (no verification needed — bridge validates)
+      localStorage.setItem('gToken', _googleToken);
       try {
-        const payload = JSON.parse(atob(_googleToken.split('.')[1]));
+        const payload = _decodeJwtPayload(_googleToken);
         showApp(payload.email);
       } catch { showApp(); }
       loadEpisodes();
