@@ -3,6 +3,8 @@ auth/
 data/
 public/episodes/
 public/feed.xml
+__pycache__/
+*.py[cod]
 .spec-gen/
 .claude/
 docker-compose.override.yml
