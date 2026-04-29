@@ -1,8 +1,10 @@
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
+import pytest
 
-# Stub heavy/unavailable dependencies so harvester.py can be imported without Docker
+# Use asyncio event loop mode for pytest-asyncio
+pytest_asyncio_mode = "auto"
 for mod in ("podgen", "playwright", "notebooklm"):
     sys.modules.setdefault(mod, MagicMock())
 
