@@ -1,0 +1,16 @@
+rss_feeds:
+  - url: "https://example.com/feed.xml"
+    style: deep-dive
+  - url: "https://another.com/rss"
+    style: brief
+
+# Seconds between RSS polls (default: 30 min)
+poll_interval_minutes: 30
+
+notebooklm:
+  # Fallback style when feed doesn't specify one
+  # Options: brief | deep-dive | critique | debate
+  default_style: deep-dive
+
+  # Optional: custom instructions passed to NotebookLM audio generation
+  # instructions: "Create a clear spoken French podcast summarizing the episode."

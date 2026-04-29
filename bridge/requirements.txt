@@ -3,3 +3,5 @@ requests>=2.31.0
 notebooklm-py>=0.3.4
 playwright>=1.40.0
 aiohttp>=3.9.0
+feedparser>=6.0.0
+pyyaml>=6.0
