@@ -1,0 +1,182 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
+  <channel>
+    <title>NoteCast — laurent</title>
+    <link>http://localhost</link>
+    <description>Personal podcast server for NotebookLM audio</description>
+    <itunes:explicit>no</itunes:explicit>
+    <docs>http://www.rssboard.org/rss-specification</docs>
+    <generator>python-podgen v1.1.0 https://podgen.readthedocs.org</generator>
+    <lastBuildDate>Wed, 29 Apr 2026 19:47:54 +0000</lastBuildDate>
+    <pubDate>Tue, 28 Apr 2026 05:38:18 +0000</pubDate>
+    <itunes:image href="http://localhost/cover.png"/>
+    <item>
+      <title>L'ingénierie des harnais pour agents IA</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/71c982d7-102b-4772-a99e-38bd396e49bd.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/71c982d7-102b-4772-a99e-38bd396e49bd.m4a" length="25398012" type="audio/mp4"/>
+      <pubDate>Tue, 28 Apr 2026 05:38:18 +0000</pubDate>
+    </item>
+    <item>
+      <title>L'IA physique aux commandes des machines</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/b1ff3011-08d1-4373-a3c6-eccb42712ea0.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/b1ff3011-08d1-4373-a3c6-eccb42712ea0.m4a" length="30711717" type="audio/mp4"/>
+      <pubDate>Tue, 28 Apr 2026 05:22:36 +0000</pubDate>
+    </item>
+    <item>
+      <title>L’IA face au monde physique</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/7040646a-5f75-4233-87bd-41554bfdba29.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/7040646a-5f75-4233-87bd-41554bfdba29.m4a" length="37713734" type="audio/mp4"/>
+      <pubDate>Tue, 28 Apr 2026 05:21:53 +0000</pubDate>
+    </item>
+    <item>
+      <title>Piloter les agents IA avec un harnais</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/4eb2e7f7-948a-46cb-b176-3f3d842f3a00.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/4eb2e7f7-948a-46cb-b176-3f3d842f3a00.m4a" length="27929734" type="audio/mp4"/>
+      <pubDate>Mon, 27 Apr 2026 13:13:17 +0000</pubDate>
+    </item>
+    <item>
+      <title>Bâtir de véritables usines à IA</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/295aac21-a855-4e6f-8877-45f77e8d09a0.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/295aac21-a855-4e6f-8877-45f77e8d09a0.m4a" length="32143047" type="audio/mp4"/>
+      <pubDate>Sun, 26 Apr 2026 22:15:16 +0000</pubDate>
+    </item>
+    <item>
+      <title>Apple nouveau patron et matériel par abonnement</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/5a08e778-a0b1-4d88-adf9-93e0d5a389b2.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/5a08e778-a0b1-4d88-adf9-93e0d5a389b2.m4a" length="38794702" type="audio/mp4"/>
+      <pubDate>Sun, 26 Apr 2026 20:45:02 +0000</pubDate>
+    </item>
+    <item>
+      <title>Les agents IA dévorent le logiciel</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/e736117c-b007-43f1-9c69-04c2a589acb1.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/e736117c-b007-43f1-9c69-04c2a589acb1.m4a" length="46733513" type="audio/mp4"/>
+      <pubDate>Sun, 26 Apr 2026 15:09:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>Sept millisecondes de fibre sombre pour l'IA</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/c00b34bc-1cb0-41bc-adfb-06a04aa7d7e5.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/c00b34bc-1cb0-41bc-adfb-06a04aa7d7e5.m4a" length="41962182" type="audio/mp4"/>
+      <pubDate>Sun, 26 Apr 2026 15:07:12 +0000</pubDate>
+    </item>
+    <item>
+      <title>Fixing the broken math of AI search</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/627ce15a-5449-44f5-8d0f-918ca79fa9ba.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/627ce15a-5449-44f5-8d0f-918ca79fa9ba.m4a" length="47697209" type="audio/mp4"/>
+      <pubDate>Sat, 25 Apr 2026 21:55:38 +0000</pubDate>
+    </item>
+    <item>
+      <title>How Notion Built a Software Factory</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/9c7d6862-4031-404b-87d5-ff87b37efa4c.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/9c7d6862-4031-404b-87d5-ff87b37efa4c.m4a" length="44156965" type="audio/mp4"/>
+      <pubDate>Thu, 23 Apr 2026 05:33:51 +0000</pubDate>
+    </item>
+    <item>
+      <title>Mistral donne une voix au raisonnement pur</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/a791b3bd-5818-4c42-89a4-1f75f2b4a636.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/a791b3bd-5818-4c42-89a4-1f75f2b4a636.m4a" length="32248380" type="audio/mp4"/>
+      <pubDate>Fri, 10 Apr 2026 05:23:17 +0000</pubDate>
+    </item>
+    <item>
+      <title>Orchestration d'agents et ingénierie des harnais</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/65beccde-0820-4348-97a1-f2a80e310ed6.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/65beccde-0820-4348-97a1-f2a80e310ed6.m4a" length="31306384" type="audio/mp4"/>
+      <pubDate>Fri, 10 Apr 2026 05:20:43 +0000</pubDate>
+    </item>
+    <item>
+      <title>L'ingénierie physique à la vitesse logicielle</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/bf8836af-55fc-4d1c-a185-930913223aee.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/bf8836af-55fc-4d1c-a185-930913223aee.m4a" length="18194291" type="audio/mp4"/>
+      <pubDate>Wed, 08 Apr 2026 12:42:58 +0000</pubDate>
+    </item>
+    <item>
+      <title>Un million de lignes sans humains</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/a272df85-2f85-45ad-8321-7e0cf133d413.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/a272df85-2f85-45ad-8321-7e0cf133d413.m4a" length="22468115" type="audio/mp4"/>
+      <pubDate>Wed, 08 Apr 2026 06:55:08 +0000</pubDate>
+    </item>
+    <item>
+      <title>Un million de lignes sans code humain</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/6abc4887-981b-4e69-92b5-b0f82c9a4c37.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/6abc4887-981b-4e69-92b5-b0f82c9a4c37.m4a" length="30781216" type="audio/mp4"/>
+      <pubDate>Wed, 08 Apr 2026 06:49:57 +0000</pubDate>
+    </item>
+    <item>
+      <title>L'IA et le piège du zéro code</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/dc23e119-900d-41ba-822b-05798014572a.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/dc23e119-900d-41ba-822b-05798014572a.m4a" length="23572242" type="audio/mp4"/>
+      <pubDate>Sun, 15 Mar 2026 14:09:08 +0000</pubDate>
+    </item>
+    <item>
+      <title>Spec-gen transforme le code en spécifications fiables</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/6051c1e8-2e70-4f6e-a3ad-3397b3e34a73.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/6051c1e8-2e70-4f6e-a3ad-3397b3e34a73.m4a" length="48610082" type="audio/mp4"/>
+      <pubDate>Fri, 06 Mar 2026 12:59:28 +0000</pubDate>
+    </item>
+    <item>
+      <title>L'élagage squelettique des God Functions</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/693beba0-1460-4e88-b098-a646850faa0e.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/693beba0-1460-4e88-b098-a646850faa0e.m4a" length="38256835" type="audio/mp4"/>
+      <pubDate>Fri, 06 Mar 2026 12:57:54 +0000</pubDate>
+    </item>
+    <item>
+      <title>Decoding No Magic Documentation Strategy for Users</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/2a17086d-b0a4-4447-93b6-8fc00d42f585.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/2a17086d-b0a4-4447-93b6-8fc00d42f585.m4a" length="17901448" type="audio/mp4"/>
+      <pubDate>Tue, 18 Nov 2025 09:53:53 +0000</pubDate>
+    </item>
+    <item>
+      <title>La Géo-Batterie des Abysses: Des Nodules Métalliques Produisent de l'Oxygène dans le Noir Total</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/7cce553d-9176-4784-92fb-9302d3ecc4ae.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/7cce553d-9176-4784-92fb-9302d3ecc4ae.m4a" length="27383645" type="audio/mp4"/>
+      <pubDate>Fri, 07 Nov 2025 21:29:03 +0000</pubDate>
+    </item>
+    <item>
+      <title>Élus contre citoyens : Le fossé culturel qui nourrit le populisme en Europe</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/faa730bc-ee64-47e9-9d73-3313373f7aa8.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/faa730bc-ee64-47e9-9d73-3313373f7aa8.m4a" length="11642739" type="audio/mp4"/>
+      <pubDate>Mon, 18 Aug 2025 19:38:34 +0000</pubDate>
+    </item>
+    <item>
+      <title>Les Noduleuses Géo-Batteries : Quand les Abysses Produisent de l'Oxygène dans le Noir Total</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/b6199025-bbbd-42c1-9d08-905b6fc5b1b4.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/b6199025-bbbd-42c1-9d08-905b6fc5b1b4.m4a" length="14091639" type="audio/mp4"/>
+      <pubDate>Sat, 16 Aug 2025 12:00:56 +0000</pubDate>
+    </item>
+    <item>
+      <title>Optimisation vLLM : 16x Débit et Réduction Coût</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/cec51842-1a5c-425c-8dc5-5cd699849948.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/cec51842-1a5c-425c-8dc5-5cd699849948.m4a" length="14045316" type="audio/mp4"/>
+      <pubDate>Sat, 05 Jul 2025 21:01:19 +0000</pubDate>
+    </item>
+    <item>
+      <title>L'islamisme politique des Frères musulmans en France</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/41111030-5977-436c-97b3-92b79803951c.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/41111030-5977-436c-97b3-92b79803951c.m4a" length="15104552" type="audio/mp4"/>
+      <pubDate>Tue, 27 May 2025 06:35:56 +0000</pubDate>
+    </item>
+    <item>
+      <title>A Programme for Comprehensive Sexuality Education</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/afbdbed4-5f25-488a-8aae-dcd1a37a849d.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/afbdbed4-5f25-488a-8aae-dcd1a37a849d.m4a" length="11624810" type="audio/mp4"/>
+      <pubDate>Fri, 23 May 2025 18:27:50 +0000</pubDate>
+    </item>
+    <item>
+      <title>Secondary School English Program Projects</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/7b5b0ad1-03a2-426f-a643-1c86485b4434.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/7b5b0ad1-03a2-426f-a643-1c86485b4434.m4a" length="9658597" type="audio/mp4"/>
+      <pubDate>Fri, 23 May 2025 18:19:41 +0000</pubDate>
+    </item>
+    <item>
+      <title>Exploration de la RAG en IA Générative</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/bab6d070-2ed5-47ab-8033-7bc41c8c8eb1.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/bab6d070-2ed5-47ab-8033-7bc41c8c8eb1.m4a" length="15539304" type="audio/mp4"/>
+      <pubDate>Thu, 22 May 2025 06:24:27 +0000</pubDate>
+    </item>
+    <item>
+      <title>Le Filioque, Question qui Divise l'Église</title>
+      <guid isPermaLink="false">http://localhost/episodes/laurent/9792195f-0f40-4090-abff-ab1bcb1c35ba.m4a</guid>
+      <enclosure url="http://localhost/episodes/laurent/9792195f-0f40-4090-abff-ab1bcb1c35ba.m4a" length="14328351" type="audio/mp4"/>
+      <pubDate>Wed, 21 May 2025 05:23:14 +0000</pubDate>
+    </item>
+  </channel>
+</rss>

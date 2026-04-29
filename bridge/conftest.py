@@ -5,7 +5,13 @@ import pytest
 
 # Use asyncio event loop mode for pytest-asyncio
 pytest_asyncio_mode = "auto"
-for mod in ("podgen", "playwright", "notebooklm"):
+
+try:
+    import podgen  # noqa: F401
+except ImportError:
+    sys.modules.setdefault("podgen", MagicMock())
+
+for mod in ("playwright", "notebooklm"):
     sys.modules.setdefault(mod, MagicMock())
 
 # Suppress module-level EPISODES_DIR.mkdir() which tries to create /public/episodes

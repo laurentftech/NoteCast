@@ -19,5 +19,7 @@ RUN uv pip install --system --no-cache -r requirements.txt && \
     python -m playwright install chromium
 
 COPY harvester.py .
+COPY rss_transformer.py .
+COPY main.py .
 
-CMD ["python", "harvester.py"]
+CMD ["python", "main.py"]

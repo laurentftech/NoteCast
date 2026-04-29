@@ -14,3 +14,9 @@ claude.md
 .github/hooks/rtk-rewrite.json
 .kilocode/rules/rtk-rules.md
 ARCHITECTURE.md
+/.vibe/
+/.venv/
+/.code-review-graph/
+/.github/
+/.kilocode/
+/config/transformer.yaml

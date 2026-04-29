@@ -235,13 +235,35 @@ async def fetch_episodes(session: aiohttp.ClientSession, url: str) -> tuple[str,
     return f_title, results
 
 
+def _feeds_for_user(config: dict, user: User) -> list[dict]:
+    feeds_cfg = config.get('rss_feeds', [])
+    if isinstance(feeds_cfg, dict):
+        user_feeds = feeds_cfg.get(user.name)
+        if user_feeds is None and not _MULTI_USER and len(feeds_cfg) == 1:
+            # Single-user convenience: allow one keyed section without forcing "default"
+            user_feeds = next(iter(feeds_cfg.values()))
+        return user_feeds if isinstance(user_feeds, list) else []
+    return feeds_cfg if isinstance(feeds_cfg, list) else []
+
+
+def _user_has_configured_feeds(config: dict, user: User) -> bool:
+    for feed_cfg in _feeds_for_user(config, user):
+        if not isinstance(feed_cfg, dict):
+            continue
+        url = feed_cfg.get('url', '').strip()
+        name = feed_cfg.get('name', '').strip()
+        if url and name:
+            return True
+    return False
+
+
 async def poll_feeds(user: User, config: dict):
     nb_cfg        = config.get('notebooklm', {})
     default_style = nb_cfg.get('default_style', DEFAULT_STYLE)
     new_jobs      = 0
 
     async with aiohttp.ClientSession() as session:
-        for feed_cfg in config.get('rss_feeds', []):
+        for feed_cfg in _feeds_for_user(config, user):
             url   = feed_cfg.get('url', '').strip()
             name  = feed_cfg.get('name', '').strip()
             style = feed_cfg.get('style', default_style)
@@ -357,26 +379,35 @@ async def process_job(user: User, job: dict, config: dict):
 
     except Exception as e:
         logger.error(f"[{user.name}:{feed_name}] Failed: {e}")
-        retries = job.get('retries', 0) + 1
-        update_job(
-            user,
-            job_id,
-            status='failed' if retries > MAX_RETRIES else 'pending',
-            retries=retries,
-        )
+        err_msg = str(e)
+        if isinstance(e, FileNotFoundError) or 'Storage file not found:' in err_msg:
+            logger.warning(
+                f"[{user.name}:{feed_name}] Auth storage missing; keeping job pending for retry"
+            )
+            update_job(user, job_id, status='pending')
+        else:
+            retries = job.get('retries', 0) + 1
+            update_job(
+                user,
+                job_id,
+                status='failed' if retries > MAX_RETRIES else 'pending',
+                retries=retries,
+            )
         temp_path.unlink(missing_ok=True)
 
 # ── Feed builder ──────────────────────────────────────────────────────────────
 
 def rebuild_feed(user: User, feed_name: str, feed_title: str):
-    if not BASE_URL:
+    base_url = os.getenv('BASE_URL', '').rstrip('/') or BASE_URL
+    if not base_url:
         logger.warning(f"[{user.name}] BASE_URL not set — skipping feed rebuild")
         return
 
     jobs = get_done_jobs(user, feed_name)
-    prefix = f"{user.name}/" if _MULTI_USER else ""
-    ep_base  = f"{BASE_URL}/episodes/{prefix}{feed_name}/"
-    feed_url = f"{BASE_URL}/feed/{prefix}{feed_name}.xml?token={user.feed_token}"
+    env_multi_user = os.getenv('_MULTI_USER', '').lower() in {'1', 'true', 'yes', 'on'}
+    prefix = f"{user.name}/" if (_MULTI_USER or env_multi_user) else ""
+    ep_base  = f"{base_url}/episodes/{prefix}{feed_name}/"
+    feed_url = f"{base_url}/feed/{prefix}{feed_name}.xml?token={user.feed_token}"
 
     podcast = Podcast(
         name=feed_title,
@@ -448,14 +479,16 @@ async def main_async():
         config = load_config()
         poll_secs = config.get('poll_interval_minutes', 30) * 60
 
-        # Poll feeds for all users
-        for user in USERS_CONFIG:
+        active_users = [u for u in USERS_CONFIG if _user_has_configured_feeds(config, u)]
+
+        # Poll feeds only for users with configured feeds
+        for user in active_users:
             if time.time() - last_poll[user.name] >= poll_secs:
                 await poll_feeds(user, config)
                 last_poll[user.name] = time.time()
 
-        # Process next pending job from any user
-        for user in USERS_CONFIG:
+        # Process next pending job only for users with configured feeds
+        for user in active_users:
             job = get_next_pending(user)
             if job:
                 await process_job(user, job, config)

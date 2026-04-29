@@ -38,6 +38,8 @@ curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/Caddyfile
 curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/.env.example
 mkdir -p auth data public/episodes
 curl -o public/index.html https://raw.githubusercontent.com/laurentftech/NoteCast/main/public/index.html
+mkdir -p config
+curl -o config/transformer.yaml https://raw.githubusercontent.com/laurentftech/NoteCast/main/bridge/transformer.yaml.example
 ```
 
 The bridge image (`ghcr.io/laurentftech/notecast:latest`) is pulled automatically.
@@ -61,7 +63,10 @@ Edit `.env`:
 ```env
 BASE_URL=https://podcast.yourdomain.com   # public URL of this server
 CADDY_DOMAIN=podcast.yourdomain.com       # same host, no protocol
+TRANSFORMER_CONFIG=/config/transformer.yaml
 ```
+
+`TRANSFORMER_CONFIG` points to the YAML file inside the container. The file itself stays outside the container at `./config/transformer.yaml`.
 
 ### 4. Authenticate with NotebookLM
 

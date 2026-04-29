@@ -40,7 +40,7 @@
 #### Phase 4: API & Output ✅
 - [x] Update rebuild_feed() for per-user RSS output
 - [x] Update main_async() to handle all users
-- [x] Test multi-user configuration
+- [ ] Test multi-user configuration
 
 ## Architecture
 

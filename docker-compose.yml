@@ -11,6 +11,9 @@ services:
       - ./public:/public
       - ./data:/data
       - ./auth:/root/.notebooklm
+      - ./config:/config:ro
+    environment:
+      - TRANSFORMER_CONFIG
 
   caddy:
     image: caddy:2-alpine

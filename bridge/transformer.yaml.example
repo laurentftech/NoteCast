@@ -1,8 +1,15 @@
+# Feeds are NOT shared between users.
+# Single-user mode: set rss_feeds as a list.
+# Multi-user mode: set rss_feeds as a map keyed by user name.
 rss_feeds:
-  - url: "https://example.com/feed.xml"
-    style: deep-dive
-  - url: "https://another.com/rss"
-    style: brief
+  laurent:
+    - name: tech-news
+      url: "https://example.com/feed.xml"
+      style: deep-dive
+  armelle:
+    - name: product-updates
+      url: "https://another.com/rss"
+      style: brief
 
 # Seconds between RSS polls (default: 30 min)
 poll_interval_minutes: 30
