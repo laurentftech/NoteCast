@@ -26,6 +26,9 @@ import aiohttp
 import yaml
 from podgen import Episode, Media, Podcast
 
+from dotenv import load_dotenv
+load_dotenv()
+
 try:
     import feedparser
 except ImportError:
@@ -40,9 +43,10 @@ except ImportError:
 # ── Config ───────────────────────────────────────────────────────────────────
 
 CONFIG_PATH  = Path(os.getenv('TRANSFORMER_CONFIG', '/data/transformer.yaml'))
-PUBLIC_DIR   = Path('/public')
+PUBLIC_DIR   = Path(os.getenv('PUBLIC_DIR', './public'))
 BASE_URL     = os.getenv('BASE_URL', '').rstrip('/')
 _DEFAULT_AUTH_FILE = Path('/root/.notebooklm/storage_state.json')
+DATA_BASE = Path(os.getenv('DATA_BASE', '/data'))
 
 # ── User model ─────────────────────────────────────────────────────────────
 
@@ -71,11 +75,11 @@ def _build_users() -> list[User]:
 
     if not names:
         # Single-user backward compat
-        token = _load_or_generate_feed_token(Path('/data/.transformer_feed_token'))
+        token = _load_or_generate_feed_token(DATA_BASE / '.transformer_feed_token')
         return [User(
             name='default',
             auth_file=_DEFAULT_AUTH_FILE,
-            db_file=Path('/data/transformer.db'),
+            db_file=DATA_BASE / 'transformer.db',
             episodes_dir=PUBLIC_DIR / 'episodes',
             feed_dir=PUBLIC_DIR / 'feed',
             feed_token=token,
@@ -83,11 +87,11 @@ def _build_users() -> list[User]:
 
     users = []
     for name in names:
-        token = _load_or_generate_feed_token(Path(f'/data/{name}/.transformer_feed_token'))
+        token = _load_or_generate_feed_token(DATA_BASE / f'{name}/.transformer_feed_token')
         users.append(User(
             name=name,
             auth_file=_DEFAULT_AUTH_FILE.parent / name / 'storage_state.json',
-            db_file=Path(f'/data/{name}/transformer.db'),
+            db_file=DATA_BASE / f'{name}/transformer.db',
             episodes_dir=PUBLIC_DIR / 'episodes' / name,
             feed_dir=PUBLIC_DIR / 'feed' / name,
             feed_token=token,

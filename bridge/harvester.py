@@ -13,6 +13,9 @@ from podgen import Podcast, Episode, Media
 import aiohttp
 from aiohttp import web
 
+from dotenv import load_dotenv
+load_dotenv()
+
 try:
     from notebooklm import NotebookLMClient, RPCError
 except ImportError:
@@ -32,6 +35,7 @@ WEBHOOK_URL = os.getenv('WEBHOOK_URL', '')
 WEBHOOK_LINK = os.getenv('WEBHOOK_LINK', '')
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
 TOKEN_EXPIRY_WARN_DAYS = int(os.getenv('TOKEN_EXPIRY_WARN_DAYS', '7'))
+DATA_BASE = Path(os.getenv('DATA_BASE', '/data'))
 
 _wh_raw = os.getenv('WEBHOOK_HEADERS', '')
 try:
@@ -40,7 +44,7 @@ except json.JSONDecodeError:
     WEBHOOK_HEADERS = {}
     print("WARNING: WEBHOOK_HEADERS is not valid JSON, ignoring")
 
-PUBLIC_DIR = Path('/public')
+PUBLIC_DIR = Path(os.getenv('PUBLIC_DIR', './public'))
 _DEFAULT_AUTH_FILE = Path('/root/.notebooklm/storage_state.json')
 
 # ── Logging ────────────────────────────────────────────────────────────────
@@ -93,12 +97,12 @@ def _build_users() -> list[User]:
 
     if not names:
         # Single-user backward compat — existing paths, no auth required
-        token = _load_or_generate_feed_token(Path('/data/.feed_token'))
+        token = _load_or_generate_feed_token(DATA_BASE / '.feed_token')
         return [User(
             name='default',
             email='',
             auth_file=_DEFAULT_AUTH_FILE,
-            history_file=Path('/data/history.json'),
+            history_file=DATA_BASE / 'history.json',
             episodes_dir=PUBLIC_DIR / 'episodes',
             feed_file=PUBLIC_DIR / 'feed.xml',
             feed_token=token,
@@ -111,7 +115,7 @@ def _build_users() -> list[User]:
     for name in names:
         key = name.upper()
         email = os.getenv(f'USER_{key}_EMAIL', '')
-        token = _load_or_generate_feed_token(Path(f'/data/{name}/.feed_token'))
+        token = _load_or_generate_feed_token(DATA_BASE / f'{name}/.feed_token')
         # Per-user webhook, fallback to global
         wh_url = os.getenv(f'USER_{key}_WEBHOOK_URL', WEBHOOK_URL)
         wh_headers = _parse_webhook_headers(
@@ -122,7 +126,7 @@ def _build_users() -> list[User]:
             name=name,
             email=email,
             auth_file=_DEFAULT_AUTH_FILE.parent / name / 'storage_state.json',
-            history_file=Path(f'/data/{name}/history.json'),
+            history_file=DATA_BASE / f'{name}/history.json',
             episodes_dir=PUBLIC_DIR / 'episodes' / name,
             feed_file=PUBLIC_DIR / 'feed' / f'{token}.xml',
             feed_token=token,

@@ -6,7 +6,7 @@ import harvester
 import rss_transformer
 
 
-async def _run_both():
+async def _run_all():
     stop_event = asyncio.Event()
 
     def _request_stop():
@@ -18,6 +18,7 @@ async def _run_both():
             loop.add_signal_handler(sig, _request_stop)
 
     tasks = [
+        asyncio.create_task(harvester.run_http_server(), name="http_server"),
         asyncio.create_task(harvester.main_async(), name="harvester"),
         asyncio.create_task(rss_transformer.main_async(), name="rss_transformer"),
     ]
@@ -50,7 +51,7 @@ async def _run_both():
 
 
 def main():
-    asyncio.run(_run_both())
+    asyncio.run(_run_all())
 
 
 if __name__ == "__main__":

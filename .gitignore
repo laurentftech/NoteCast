@@ -3,6 +3,7 @@ auth/
 data/
 public/episodes/
 public/feed.xml
+public/feed/*.xml
 .spec-gen/
 .claude/
 docker-compose.override.yml
@@ -20,3 +21,4 @@ ARCHITECTURE.md
 /.github/
 /.kilocode/
 /config/transformer.yaml
+/public/feed/
