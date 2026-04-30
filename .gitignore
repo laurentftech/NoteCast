@@ -25,3 +25,5 @@ ARCHITECTURE.md
 /AGENTS.md
 /tests/__pycache__/
 /tests/.pytest_cache/
+.aider*
+.aider-desk/
