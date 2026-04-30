@@ -1,5 +1,23 @@
 # NoteCast Refactoring Plan v2
 
+## AGENT EXECUTION PROTOCOL (MANDATORY)
+
+Rules:
+1. Always execute the FIRST unchecked task in this document
+2. Do NOT skip tasks
+3. Do NOT implement anything not explicitly listed
+4. Mark task as [x] ONLY when fully complete
+5. If blocked, add a sub-bullet with explanation and DO NOT check
+
+Execution steps:
+- Open this file
+- Find first [ ] task
+- Execute it fully
+- Update the checkbox
+- Save the file
+
+This document is the single source of truth.
+
 ## Executive Summary
 
 This document outlines a phased refactoring to improve code quality through proper separation
@@ -859,4 +877,3 @@ This session delivered 8 critical implementations that moved the refactoring fro
 
 **After Phase 4 complete**:
 - Bridge cleanup and deprecation (Phase 7)
-
