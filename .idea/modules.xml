@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/NoteCast.iml" filepath="$PROJECT_DIR$/.idea/NoteCast.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/notecast.iml" filepath="$PROJECT_DIR$/.idea/notecast.iml" />
     </modules>
   </component>
 </project>
