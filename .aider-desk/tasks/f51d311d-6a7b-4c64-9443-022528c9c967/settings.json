@@ -1,0 +1,23 @@
+{
+  "id": "f51d311d-6a7b-4c64-9443-022528c9c967",
+  "baseDir": "/Users/laurent/Projets/NoteCast",
+  "name": "you here ?",
+  "archived": false,
+  "aiderTotalCost": 0,
+  "agentTotalCost": 0,
+  "mainModel": "",
+  "currentMode": "agent",
+  "contextCompactingThreshold": 0,
+  "weakModelLocked": false,
+  "parentId": null,
+  "lastAgentProviderMetadata": null,
+  "agentProfileId": "23209c3a-e9a5-46af-ab90-226128a251c1",
+  "provider": "gemini-cli",
+  "model": "gemini-2.5-flash",
+  "workingMode": "local",
+  "startedAt": "2026-04-30T08:58:45.750Z",
+  "state": "TODO",
+  "createdAt": "2026-04-30T08:53:45.865Z",
+  "updatedAt": "2026-04-30T08:59:21.533Z",
+  "completedAt": "2026-04-30T08:55:29.495Z"
+}

@@ -206,6 +206,7 @@ async def test_status_single_user(aiohttp_client, aio_app, make_user):
     user = make_user()
     with patch.object(harvester, 'GOOGLE_CLIENT_ID', ''), \
          patch.object(harvester, 'USERS_CONFIG', [user]), \
+         patch.object(harvester, '_MULTI_USER', False), \
          patch.object(harvester, 'BASE_URL', 'http://localhost'):
         client = await aiohttp_client(aio_app)
         resp = await client.get('/api/status')

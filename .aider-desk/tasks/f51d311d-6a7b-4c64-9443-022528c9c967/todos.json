@@ -1,0 +1,25 @@
+{
+  "initialUserPrompt": "I need to update the CORS settings in the FastApi application. Specifically, I need to modify the `main.py` file in the `bridge` directory to ensure that `allow_credentials` is set to `True` for `CORS` middleware.",
+  "items": [
+    {
+      "name": "Inform user about aiohttp instead of FastAPI",
+      "completed": true
+    },
+    {
+      "name": "Install aiohttp_cors dependency",
+      "completed": false
+    },
+    {
+      "name": "Add CORS middleware to aiohttp application in bridge/harvester.py",
+      "completed": false
+    },
+    {
+      "name": "Set allow_credentials to True for CORS in bridge/harvester.py",
+      "completed": false
+    },
+    {
+      "name": "Verify the change",
+      "completed": false
+    }
+  ]
+}

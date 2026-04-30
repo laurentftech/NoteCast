@@ -23,3 +23,5 @@ ARCHITECTURE.md
 /config/transformer.yaml
 /public/feed/
 /AGENTS.md
+/tests/__pycache__/
+/tests/.pytest_cache/

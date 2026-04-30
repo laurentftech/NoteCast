@@ -1,13 +1,22 @@
 schema: spec-driven
 spec-gen:
   version: 1.0.0
-  generatedAt: 2026-04-24T20:59:04.523Z
+  generatedAt: 2026-04-30T09:33:45.888Z
   domains:
-    - artifact
+    - user
     - feed
-  confidence: 0.75
+    - episode
+    - auth
+    - api
+  confidence: 0.8
 context: |-
+  # User-provided context (preserved)
   # Auto-detected by spec-gen
   Tech stack: Python
   Architecture: Monolithic
   Domains: artifact, feed, history
+
+  # Auto-detected by spec-gen
+  Tech stack: Python, aiohttp
+  Architecture: Layered (routes → controllers → services → repositories)
+  Domains: user, feed, episode, auth, api
