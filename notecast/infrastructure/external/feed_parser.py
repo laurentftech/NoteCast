@@ -27,12 +27,21 @@ def fetch_episodes(url: str) -> Tuple[str, list[Episode]]:
 
     episodes = []
     for entry in parsed.entries:
+        # Prefer audio enclosure URL; fall back to article link
+        enclosures = entry.get("enclosures", [])
+        audio = next(
+            (e["href"] for e in enclosures if e.get("type", "").startswith("audio/")),
+            None,
+        )
+        url = audio or entry.get("link", "")
+        if not url:
+            continue
         episode = Episode(
-            url=entry.get("link", ""),
+            url=url,
             title=entry.get("title", "Untitled"),
-            feed_name="",  # Will be set by caller
+            feed_name="",
             feed_title=feed_title,
-            style="deep-dive",  # Default style
+            style="deep-dive",
         )
         episodes.append(episode)
 
