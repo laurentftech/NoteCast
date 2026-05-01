@@ -27,17 +27,20 @@ def fetch_episodes(url: str) -> Tuple[str, list[Episode]]:
 
     episodes = []
     for entry in parsed.entries:
-        # Prefer audio enclosure URL; fall back to article link
         enclosures = entry.get("enclosures", [])
-        audio = next(
+        audio_url = next(
             (e["href"] for e in enclosures if e.get("type", "").startswith("audio/")),
             None,
         )
-        url = audio or entry.get("link", "")
-        if not url:
+        article_url = entry.get("link", "")
+        # episode_url = unique dedup key (MP3 preferred, fallback to article)
+        # source_url  = what NotebookLM scrapes (article page)
+        episode_url = audio_url or article_url
+        if not episode_url:
             continue
         episode = Episode(
-            url=url,
+            url=episode_url,
+            source_url=article_url,
             title=entry.get("title", "Untitled"),
             feed_name="",
             feed_title=feed_title,

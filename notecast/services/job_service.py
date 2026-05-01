@@ -34,7 +34,7 @@ class JobService:
                 nb_id = nb.id
                 repo.update_job(user, job.id, notebook_id=nb.id)
 
-                await client.add_source(nb.id, url=job.episode_url)
+                await client.add_source(nb.id, url=job.source_url or job.episode_url)
                 await client.generate_audio(nb.id, style=job.style)
                 repo.update_job(user, job.id, status="generating")
                 # Harvester worker polls and completes download

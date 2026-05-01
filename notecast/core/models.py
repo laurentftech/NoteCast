@@ -37,7 +37,8 @@ class Job(BaseModel):
     user_name: str
     feed_name: str
     feed_title: str
-    episode_url: str
+    episode_url: str       # MP3/enclosure URL — used for deduplication
+    source_url: str = ""   # article page URL — used as NotebookLM source
     title: str
     status: Literal["pending", "processing", "generating", "done", "failed"]
     style: str = "deep-dive"
@@ -64,7 +65,8 @@ class Feed(BaseModel):
 class Episode(BaseModel):
     """Podcast episode."""
 
-    url: str
+    url: str             # MP3/enclosure URL — used for deduplication
+    source_url: str = "" # article page URL — used as NotebookLM source
     title: str
     feed_name: str
     feed_title: str
