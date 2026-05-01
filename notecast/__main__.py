@@ -29,8 +29,10 @@ logger = logging.getLogger(__name__)
 
 
 async def main():
-    """Main application entry point."""
-    # Load settings
+    import os
+    version = os.getenv("APP_VERSION", "dev")
+    logger.info("NoteCast %s starting", version)
+
     settings = Settings()
     logger.info("Settings loaded")
 
