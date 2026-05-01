@@ -1,33 +1,22 @@
-"""Per-user configuration loading and validation."""
-from pathlib import Path
-
+"""Per-user configuration loading."""
 import yaml
 
 from notecast.core.models import Feed
-from notecast.infrastructure.config.settings import settings
+from notecast.infrastructure.config.settings import settings as global_settings
 
 
 def load_user_config(user) -> list[Feed]:
-    """Load per-user transformer.yaml and return validated Feed objects.
-    
-    Args:
-        user: User object with name attribute
-        
-    Returns:
-        List of validated Feed objects
-        
-    Raises:
-        ConfigError: If config file is missing or invalid
+    """Load feed list from {config_dir}/{user.name}/transformer.yaml.
+
+    Format:
+        feeds:
+          - name: tech-news
+            url: https://example.com/feed.xml
+            style: deep-dive
     """
-    path: Path = settings.data_base / user.name / "transformer.yaml"
+    path = global_settings.config_dir / user.name / "transformer.yaml"
     try:
-        raw = yaml.safe_load(path.read_text())
+        raw = yaml.safe_load(path.read_text()) or {}
     except FileNotFoundError:
-        from notecast.core.exceptions import ConfigError
-        raise ConfigError(f"Config file not found: {path}")
-    except yaml.YAMLError as e:
-        from notecast.core.exceptions import ConfigError
-        raise ConfigError(f"Invalid YAML in {path}: {e}")
-    
-    feeds_data = raw.get("feeds", [])
-    return [Feed(**f) for f in feeds_data]
+        return []
+    return [Feed(**f) for f in raw.get("feeds", [])]
