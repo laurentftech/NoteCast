@@ -20,7 +20,8 @@ ARCHITECTURE.md
 /.code-review-graph/
 /.github/
 /.kilocode/
-/config/transformer.yaml
+/config/*/transformer.yaml
+!/config/example/transformer.yaml
 /public/feed/
 /AGENTS.md
 /tests/__pycache__/

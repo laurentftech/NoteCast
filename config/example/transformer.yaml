@@ -1,0 +1,10 @@
+feeds:
+  - name: my-podcast
+    url: "https://example.com/feed/podcast.rss"
+    style: deep-dive
+    max_episodes: 1
+
+  # - name: another-feed
+  #   url: "https://another.example.com/feed.rss"
+  #   style: deep-dive
+  #   max_episodes: 2

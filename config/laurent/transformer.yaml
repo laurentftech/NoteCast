@@ -1,4 +1,0 @@
-feeds:
-  - name: latent-space
-    url: "https://api.substack.com/feed/podcast/1084089.rss"
-    style: deep-dive
