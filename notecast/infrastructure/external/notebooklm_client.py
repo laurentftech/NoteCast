@@ -1,189 +1,109 @@
-"""NotebookLM client wrapper with retry logic and error handling."""
-import asyncio
-import time
+"""NotebookLM client wrapper using notebooklm-py."""
+import logging
+from pathlib import Path
 from typing import Any
 
 from notecast.core.models import Artifact, User
 from notecast.core.exceptions import NotebookLMError
 
+logger = logging.getLogger(__name__)
+
 
 class NotebookLMClientWrapper:
-    """Wrapper for NotebookLM client with retry logic and typed responses."""
+    """Thin async wrapper around NotebookLMClient."""
 
-    def __init__(self, max_retries: int = 3, timeout: int = 2700):
+    def __init__(
+        self,
+        auth_file: Path | None = None,
+        max_retries: int = 3,
+        timeout: int = 2700,
+    ):
+        self._auth_file = auth_file
         self._max_retries = max_retries
         self._timeout = timeout
         self._client: Any = None
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self.close()
-
-    async def close(self) -> None:
-        """Close the client connection."""
-        if self._client:
-            await self._client.close()
-            self._client = None
+        # notebook_id -> task_id from the most recent generate_audio call
+        self._pending_tasks: dict[str, str] = {}
 
     async def session(self, user: User) -> "NotebookLMClientWrapper":
-        """Return self to be used as an async context manager."""
+        """Return a user-scoped wrapper (used as async context manager)."""
+        return NotebookLMClientWrapper(user.auth_file, self._max_retries, self._timeout)
+
+    async def __aenter__(self) -> "NotebookLMClientWrapper":
+        from notebooklm import NotebookLMClient
+
+        path = str(self._auth_file) if self._auth_file else None
+        self._client = await NotebookLMClient.from_storage(path, timeout=30.0)
+        await self._client.__aenter__()
         return self
 
-    @classmethod
-    async def from_user(cls, user: User, max_retries: int = 3, timeout: int = 2700) -> "NotebookLMClientWrapper":
-        """Create a client wrapper from a User object.
-        
-        Args:
-            user: User object
-            max_retries: Maximum number of retries for API calls
-            timeout: Timeout in seconds for long-running operations
-            
-        Returns:
-            NotebookLMClientWrapper instance
-        """
-        return cls(max_retries=max_retries, timeout=timeout)
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        if self._client:
+            await self._client.__aexit__(exc_type, exc_val, exc_tb)
+            self._client = None
+
+    async def close(self) -> None:
+        if self._client:
+            await self._client.__aexit__(None, None, None)
+            self._client = None
 
     async def create_notebook(self, title: str) -> Any:
-        """Create a new notebook in NotebookLM.
-        
-        Args:
-            title: Notebook title
-            
-        Returns:
-            Notebook object with id attribute
-            
-        Raises:
-            NotebookLMError: If notebook creation fails
-        """
-        for attempt in range(self._max_retries):
-            try:
-                # Placeholder for actual NotebookLM API call
-                # In production, this would call the real NotebookLM API
-                notebook = type('Notebook', (), {'id': f'notebook_{int(time.time())}'})()
-                return notebook
-            except Exception as e:
-                if attempt == self._max_retries - 1:
-                    raise NotebookLMError(f"Failed to create notebook: {e}")
-                await asyncio.sleep(2 ** attempt)
+        """Create a notebook; returns object with .id."""
+        try:
+            return await self._client.notebooks.create(title)
+        except Exception as exc:
+            raise NotebookLMError(f"Failed to create notebook: {exc}") from exc
 
     async def add_source(self, notebook_id: str, url: str) -> None:
-        """Add a source URL to a notebook.
-        
-        Args:
-            notebook_id: Notebook identifier
-            url: Source URL to add
-            
-        Raises:
-            NotebookLMError: If adding source fails
-        """
-        for attempt in range(self._max_retries):
-            try:
-                # Placeholder for actual NotebookLM API call
-                return
-            except Exception as e:
-                if attempt == self._max_retries - 1:
-                    raise NotebookLMError(f"Failed to add source: {e}")
-                await asyncio.sleep(2 ** attempt)
+        """Add a URL source to a notebook (waits for indexing)."""
+        try:
+            await self._client.sources.add_url(notebook_id, url, wait=True)
+        except Exception as exc:
+            raise NotebookLMError(f"Failed to add source: {exc}") from exc
 
     async def generate_audio(self, notebook_id: str, style: str = "deep-dive") -> None:
-        """Generate audio for a notebook.
-        
-        Args:
-            notebook_id: Notebook identifier
-            style: Generation style (e.g., "deep-dive", "summary")
-            
-        Raises:
-            NotebookLMError: If generation fails
-        """
-        for attempt in range(self._max_retries):
-            try:
-                # Placeholder for actual NotebookLM API call
-                return
-            except Exception as e:
-                if attempt == self._max_retries - 1:
-                    raise NotebookLMError(f"Failed to generate audio: {e}")
-                await asyncio.sleep(2 ** attempt)
+        """Kick off audio generation; task_id stored for wait_for_audio."""
+        try:
+            status = await self._client.artifacts.generate_audio(notebook_id)
+            self._pending_tasks[notebook_id] = status.task_id
+            logger.info("Audio generation started: notebook=%s task=%s", notebook_id, status.task_id)
+        except Exception as exc:
+            raise NotebookLMError(f"Failed to start audio generation: {exc}") from exc
 
     async def wait_for_audio(self, notebook_id: str, job_id: str, timeout: int | None = None) -> Artifact:
-        """Wait for audio generation to complete.
-        
-        Args:
-            notebook_id: Notebook identifier
-            job_id: Job identifier for tracking
-            timeout: Maximum time to wait in seconds
-            
-        Returns:
-            Artifact object with audio file information
-            
-        Raises:
-            NotebookLMError: If waiting fails or times out
-        """
-        timeout = timeout or self._timeout
-        start_time = time.time()
-        
-        for attempt in range(self._max_retries):
-            try:
-                # Placeholder for actual polling logic
-                # In production, this would poll the NotebookLM API for completion
-                await asyncio.sleep(0.1)
-                
-                return Artifact(
-                    id=f"artifact_{int(time.time())}",
-                    notebook_id=notebook_id,
-                    local_path=None,
-                    duration=300,
-                )
-            except Exception as e:
-                if attempt == self._max_retries - 1:
-                    raise NotebookLMError(f"Failed to wait for audio: {e}")
-                await asyncio.sleep(2 ** attempt)
-        
-        # Fallback return (should never reach here due to exception above)
-        return Artifact(
-            id=f"artifact_{int(time.time())}",
-            notebook_id=notebook_id,
-            local_path=None,
-            duration=300,
-        )
+        """Poll until audio is ready; returns Artifact with id and notebook_id."""
+        task_id = self._pending_tasks.pop(notebook_id, None)
+        if not task_id:
+            raise NotebookLMError(f"No pending audio task for notebook {notebook_id}")
+
+        try:
+            status = await self._client.artifacts.wait_for_completion(
+                notebook_id,
+                task_id,
+                timeout=float(timeout or self._timeout),
+            )
+        except Exception as exc:
+            raise NotebookLMError(f"Audio generation polling failed: {exc}") from exc
+
+        if status.is_failed:
+            raise NotebookLMError(f"Audio generation failed: {status.error}")
+
+        return Artifact(id=status.task_id, notebook_id=notebook_id)
+
+    async def download_audio(
+        self, notebook_id: str, output_path: str, artifact_id: str | None = None
+    ) -> str:
+        """Download audio to output_path; returns the resolved path."""
+        try:
+            return await self._client.artifacts.download_audio(
+                notebook_id, output_path, artifact_id=artifact_id
+            )
+        except Exception as exc:
+            raise NotebookLMError(f"Failed to download audio: {exc}") from exc
 
     async def delete_notebook(self, notebook_id: str) -> None:
-        """Delete a notebook.
-        
-        Args:
-            notebook_id: Notebook identifier
-            
-        Raises:
-            NotebookLMError: If deletion fails
-        """
+        """Delete a notebook (best-effort, logs on failure)."""
         try:
-            # Placeholder for actual NotebookLM API call
-            return
-        except Exception as e:
-            raise NotebookLMError(f"Failed to delete notebook: {e}")
-
-    async def download_audio(self, artifact_id: str) -> bytes:
-        """Download audio for an artifact.
-        
-        Args:
-            artifact_id: Artifact identifier
-            
-        Returns:
-            Audio file bytes
-            
-        Raises:
-            NotebookLMError: If download fails
-        """
-        for attempt in range(self._max_retries):
-            try:
-                # Placeholder for actual download
-                # In production, this would download from NotebookLM
-                return b"audio_data_placeholder"
-            except Exception as e:
-                if attempt == self._max_retries - 1:
-                    raise NotebookLMError(f"Failed to download audio: {e}")
-                await asyncio.sleep(2 ** attempt)
-        
-        # Fallback return (should never reach here due to exception above)
-        return b"audio_data_placeholder"
+            await self._client.notebooks.delete(notebook_id)
+        except Exception as exc:
+            logger.warning("Failed to delete notebook %s: %s", notebook_id, exc)

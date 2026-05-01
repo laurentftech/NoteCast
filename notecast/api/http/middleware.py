@@ -13,35 +13,29 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_PUBLIC_ROUTES = {"/health", "/config"}
+
 
 async def auth_middleware(
     request: Request, handler: Handler
 ) -> StreamResponse:
-    """Authentication middleware.
-
-    Validates authentication tokens for protected routes.
-    Public routes (like health checks) are exempt.
-    """
-    # Skip auth for public routes
-    if request.path in ["/health", "/config"]:
+    if request.path in _PUBLIC_ROUTES:
         return await handler(request)
 
-    # Extract token from Authorization header
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
         return web.json_response(
             {"error": "Missing or invalid Authorization header"}, status=401
         )
 
-    token = auth_header[7:]  # Remove "Bearer " prefix
+    token = auth_header[7:]
     user_service: "UserService" = request.app["user_service"]
+    settings = request.app["settings"]
 
-    # Validate token
-    user = await _validate_token(token, user_service)
+    user = await _validate_token(token, user_service, settings.google_client_id)
     if not user:
         return web.json_response({"error": "Invalid token"}, status=401)
 
-    # Attach user to request
     request["user"] = user
     return await handler(request)
 
@@ -49,10 +43,6 @@ async def auth_middleware(
 async def error_middleware(
     request: Request, handler: Handler
 ) -> StreamResponse:
-    """Error handling middleware.
-
-    Catches exceptions and returns appropriate error responses.
-    """
     try:
         response = await handler(request)
         return response
@@ -66,20 +56,33 @@ async def error_middleware(
         )
 
 
-async def _validate_token(token: str, user_service: "UserService") -> "User | None":
-    """Validate authentication token.
-
-    Args:
-        token: Authentication token
-        user_service: User service instance
-
-    Returns:
-        User if token is valid, None otherwise
-    """
-    # Placeholder for actual token validation logic
-    # In production, this would validate against Google OAuth tokens
+async def _validate_token(
+    token: str, user_service: "UserService", google_client_id: str
+) -> "User | None":
+    # Try feed token first (fast, no network)
     users = await user_service.get_all()
     for user in users:
         if user.feed_token == token:
             return user
+
+    # Try Google ID token
+    if google_client_id:
+        email = _verify_google_id_token(token, google_client_id)
+        if email:
+            return user_service.get_by_email(email)
+
     return None
+
+
+def _verify_google_id_token(token: str, client_id: str) -> str | None:
+    """Verify a Google ID token and return the associated email, or None."""
+    try:
+        from google.auth.transport import requests as google_requests
+        from google.oauth2 import id_token
+
+        request = google_requests.Request()
+        payload = id_token.verify_oauth2_token(token, request, client_id)
+        return payload.get("email")
+    except Exception as exc:
+        logger.debug("Google token verification failed: %s", exc)
+        return None

@@ -1,99 +1,90 @@
-"""Harvester service - downloads artifacts from NotebookLM."""
+"""Harvester service - recovers stuck generating jobs from NotebookLM."""
+import logging
 from typing import Optional
 
+from notecast.core.interfaces import JobRepository
 from notecast.core.models import User, Artifact
 from notecast.infrastructure.external.notebooklm_client import NotebookLMClientWrapper
 from notecast.infrastructure.external.webhook_client import WebhookClient
 from notecast.infrastructure.storage.file_storage import LocalFileStorage
+from notecast.services.feed_service import FeedService
+
+logger = logging.getLogger(__name__)
 
 
 class HarvesterService:
-    """Service for harvesting artifacts from NotebookLM."""
+    """Recovers jobs stuck in 'generating' state after a service restart."""
 
     def __init__(
         self,
         nb_client: NotebookLMClientWrapper,
+        repo_factory,
         storage: LocalFileStorage,
+        feed_service: FeedService,
         webhook: Optional[WebhookClient] = None,
     ):
         self._nb_client = nb_client
+        self._repo_factory = repo_factory
         self._storage = storage
+        self._feed_service = feed_service
         self._webhook = webhook
 
     async def harvest_user(self, user: User) -> None:
-        """Harvest all artifacts for a user.
-        
-        Args:
-            user: User to harvest artifacts for
+        """Check for stuck generating jobs and complete them.
+
+        For each job with status='generating' and a known notebook_id,
+        connect to NotebookLM and download audio if it's ready.
         """
-        # This would typically query NotebookLM for all artifacts
-        # For now, this is a placeholder for the harvesting logic
-        pass
+        repo: JobRepository = self._repo_factory(user)
+        stuck_jobs = repo.get_generating_jobs(user)
+
+        if not stuck_jobs:
+            return
+
+        logger.info("Harvesting %d stuck job(s) for user %s", len(stuck_jobs), user.name)
+
+        async with await self._nb_client.session(user) as client:
+            for job in stuck_jobs:
+                try:
+                    await self._recover_job(client, repo, user, job)
+                except Exception as exc:
+                    logger.error("Failed to recover job %s: %s", job.id, exc)
+                    repo.update_job(user, job.id, status="failed")
+
+    async def _recover_job(self, client, repo: JobRepository, user: User, job) -> None:
+        # Check if audio artifact exists on NotebookLM
+        audio_list = await client._client.artifacts.list_audio(job.notebook_id)
+        if not audio_list:
+            logger.debug("Job %s: audio not ready yet (notebook=%s)", job.id, job.notebook_id)
+            return
+
+        artifact_id = job.artifact_id or audio_list[0].id
+        artifact = Artifact(id=artifact_id, notebook_id=job.notebook_id)
+
+        path = await self._storage.download_and_remux(client, user, job.feed_name, artifact)
+        duration = self._storage.get_duration(path)
+
+        repo.update_job(user, job.id, status="done", artifact_id=artifact_id, duration=duration)
+        logger.info("Recovered job %s -> %s", job.id, path)
+
+        await self._feed_service.rebuild_feed(user, job.feed_name, job.feed_title)
+
+        try:
+            await client._client.notebooks.delete(job.notebook_id)
+        except Exception as exc:
+            logger.warning("Could not delete notebook %s: %s", job.notebook_id, exc)
 
     async def download_artifact(
-        self, client, artifact_id: str, user: User
+        self, client, notebook_id: str, artifact_id: str, user: User, output_path: str
     ) -> Optional[Artifact]:
-        """Download a single artifact.
-        
-        Args:
-            client: NotebookLM client
-            artifact_id: Artifact identifier
-            user: User who owns the artifact
-            
-        Returns:
-            Downloaded artifact, or None if download failed
-        """
+        """Download a single artifact to output_path."""
         try:
-            # Download audio data
-            audio_data = await client.download_audio(artifact_id)
-            
-            # Create artifact object
-            artifact = Artifact(
-                id=artifact_id,
-                notebook_id=f"notebook_for_{artifact_id}",
-                local_path=None,
-                duration=None,
-            )
-            
-            # Notify via webhook if configured
+            await client.download_audio(notebook_id, output_path, artifact_id)
+            artifact = Artifact(id=artifact_id, notebook_id=notebook_id)
             if self._webhook:
-                await self._webhook.notify_job_completed(
-                    user, artifact_id, "harvest"
-                )
-            
+                await self._webhook.notify_job_completed(user, artifact_id, "harvest")
             return artifact
-            
-        except Exception as e:
+        except Exception as exc:
             if self._webhook:
-                await self._webhook.notify_job_failed(
-                    user, artifact_id, "harvest", str(e)
-                )
-            return None
-
-    async def process_artifact(
-        self, user: User, feed_name: str, artifact_id: str
-    ) -> Optional[str]:
-        """Process a single artifact.
-        
-        Args:
-            user: User who owns the artifact
-            feed_name: Feed name
-            artifact_id: Artifact identifier
-            
-        Returns:
-            Path to processed artifact, or None if processing failed
-        """
-        try:
-            # Get episode path
-            episode_path = self._storage.episode_path(
-                user, feed_name, artifact_id
-            )
-            
-            # Ensure directory exists
-            episode_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            return str(episode_path)
-            
-        except Exception as e:
-            print(f"Failed to process artifact {artifact_id}: {e}")
+                await self._webhook.notify_job_failed(user, artifact_id, "harvest", str(exc))
             return None

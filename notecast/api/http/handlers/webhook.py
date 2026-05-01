@@ -29,9 +29,6 @@ async def handle_webhook(request: web.Request) -> web.Response:
 
     # Process webhook based on event type
     if event_type == "artifact_ready":
-        artifact_id = data.get("artifact_id")
-        feed_name = data.get("feed_name")
-        if artifact_id and feed_name:
-            await harvester_service.process_artifact(user, feed_name, artifact_id)
+        await harvester_service.harvest_user(user)
 
     return web.json_response({"status": "ok"})

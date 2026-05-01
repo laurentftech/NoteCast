@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from notecast.core.models import User
-from notecast.infrastructure.config.settings import Settings
+from notecast.infrastructure.config.settings import Settings, get_env_or_default
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ class UserService:
             First user in list or raises ValueError if no users configured
         """
         if not self._users_cache:
-            self._build_users()
+            self._users_cache = self._build_users()
         if not self._users_cache:
             raise ValueError("No users configured in USERS environment variable")
         return self._users_cache[0]
@@ -175,17 +175,4 @@ class UserService:
 
     @staticmethod
     def _get_env_or_default(key: str, default: str) -> str:
-        """Get environment variable or return default.
-        
-        For now, we don't have direct OS.getenv access, so this is a stub.
-        In production, this would call os.getenv().
-        
-        Args:
-            key: Environment variable name
-            default: Default value if not found
-            
-        Returns:
-            Environment value or default
-        """
-        import os
-        return os.getenv(key, default)
+        return get_env_or_default(key, default)

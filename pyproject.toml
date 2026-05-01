@@ -12,7 +12,11 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "pydantic>=2.13.3",
     "pydantic-settings>=2.0.0",
+    "google-auth>=2.50.0",
 ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
 
 [build-system]
 requires = ["setuptools>=61.0"]

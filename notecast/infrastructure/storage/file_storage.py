@@ -28,19 +28,16 @@ class LocalFileStorage(FileStorage):
         path.write_text(content)
 
     async def download_and_remux(self, client: NotebookLMClientWrapper, user: User, feed_name: str, artifact: Artifact) -> Path:
-        # Placeholder implementation
-        audio_bytes = await client.download_audio(artifact.id)
-        
-        # Create temp file, remux, then move to final destination
-        temp_dir = Path("/tmp") # Placeholder for actual temp directory management
-        temp_file = temp_dir / f"{artifact.id}_temp.mp3"
-        temp_file.write_bytes(audio_bytes)
-
-        output_path = self.episode_path(user, feed_name, artifact.id)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        self.remux_to_m4a(temp_file, output_path)
-
-        temp_file.unlink() # Clean up temp file
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
+            temp_path = Path(f.name)
+        try:
+            await client.download_audio(artifact.notebook_id, str(temp_path), artifact.id)
+            output_path = self.episode_path(user, feed_name, artifact.id)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            self.remux_to_m4a(temp_path, output_path)
+        finally:
+            temp_path.unlink(missing_ok=True)
         return output_path
 
     def remux_to_m4a(self, src: Path, dest: Path) -> None:

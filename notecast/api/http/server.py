@@ -16,6 +16,7 @@ from notecast.api.http.handlers.status import handle_status
 from notecast.api.http.handlers.webhook import handle_webhook
 from notecast.api.http.middleware import auth_middleware, error_middleware
 from notecast.services.feed_service import FeedService
+from notecast.services.harvester_service import HarvesterService
 from notecast.services.job_service import JobService
 from notecast.services.poller_service import PollerService
 from notecast.services.user_service import UserService
@@ -43,6 +44,7 @@ def create_app(
     poller_service: PollerService,
     user_service: UserService,
     storage,
+    harvester_service: HarvesterService | None = None,
 ) -> web.Application:
     """Create and configure the aiohttp application.
     
@@ -68,6 +70,7 @@ def create_app(
     app["poller_service"] = poller_service
     app["user_service"] = user_service
     app["storage"] = storage
+    app["harvester_service"] = harvester_service
 
     # Configure routes
     app.router.add_get("/health", handle_health)

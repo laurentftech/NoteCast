@@ -33,10 +33,16 @@ class SQLiteJobRepository(JobRepository):
                     artifact_id TEXT,
                     duration INTEGER,
                     retries INTEGER,
+                    error_message TEXT,
                     created_at TEXT,
                     updated_at TEXT
                 )
             """)
+            # migrate existing DBs that predate error_message column
+            try:
+                conn.execute("ALTER TABLE jobs ADD COLUMN error_message TEXT")
+            except Exception:
+                pass
             conn.commit()
 
     def create_job(self, user: User, episode: Episode) -> Job:
@@ -67,12 +73,13 @@ class SQLiteJobRepository(JobRepository):
         )
         with self._conn() as conn:
             conn.execute("""
-                INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 new_job.id, new_job.user_name, new_job.feed_name, new_job.feed_title,
                 new_job.episode_url, new_job.title, new_job.status, new_job.style,
                 new_job.notebook_id, new_job.artifact_id, new_job.duration,
-                new_job.retries, new_job.created_at.isoformat(), new_job.updated_at.isoformat()
+                new_job.retries, None,
+                new_job.created_at.isoformat(), new_job.updated_at.isoformat()
             ))
             conn.commit()
         return new_job
@@ -102,6 +109,14 @@ class SQLiteJobRepository(JobRepository):
             rows = conn.execute(
                 "SELECT * FROM jobs WHERE user_name=? AND feed_name=? AND status='done'",
                 (user.name, feed_name)
+            ).fetchall()
+        return [Job(**dict(row)) for row in rows]
+
+    def get_generating_jobs(self, user: User) -> List[Job]:
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM jobs WHERE user_name=? AND status='generating' AND notebook_id IS NOT NULL",
+                (user.name,)
             ).fetchall()
         return [Job(**dict(row)) for row in rows]
 

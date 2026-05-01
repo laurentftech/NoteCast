@@ -61,11 +61,13 @@ class PollerService:
                 feed_title = feed.title or feed_title or feed.name
                 style = feed.style or default_style
                 
-                # Create jobs for new episodes
+                # Create jobs for new episodes, most recent first, up to max_episodes
+                queued_this_feed = 0
                 for episode in episodes:
+                    if queued_this_feed >= feed.max_episodes:
+                        break
                     if not repo.episode_seen(user, episode.url):
-                        # Create job
-                        job = repo.create_job(user, Episode(
+                        repo.create_job(user, Episode(
                             url=episode.url,
                             title=episode.title,
                             feed_name=feed.name,
@@ -74,6 +76,7 @@ class PollerService:
                         ))
                         logger.info(f"[{user.name}:{feed.name}] Queued: {episode.title[:70]}")
                         new_jobs += 1
+                        queued_this_feed += 1
                         
             except Exception as e:
                 logger.error(f"[{user.name}] Failed to poll feed {feed.name}: {e}", exc_info=True)
