@@ -61,10 +61,7 @@ class TransformerWorker:
             try:
                 await self._process_user_jobs(user)
             except Exception as e:
-                logger.error(
-                    f"Error processing jobs for user {user.name}: {e}",
-                    exc_info=True,
-                )
+                logger.error("Error processing jobs for user %s: %s", user.name, e)
 
     async def _process_user_jobs(self, user: User) -> None:
         """Process pending jobs for a single user.
@@ -90,10 +87,7 @@ class TransformerWorker:
                 }
 
                 await self._job_service.process_job(user, job, config)
-                logger.info(f"Completed job {job.id}")
+                logger.info("Generation started for job %s (feed=%s)", job.id, job.feed_name)
 
             except Exception as e:
-                logger.error(
-                    f"Failed to process job {job.id}: {e}",
-                    exc_info=True,
-                )
+                logger.error("Failed job %s: %s", job.id, e)

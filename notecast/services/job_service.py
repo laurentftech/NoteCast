@@ -1,9 +1,15 @@
+import logging
+from typing import Callable
+
+import asyncio
+
 from notecast.core.interfaces import JobRepository, FileStorage
 from notecast.infrastructure.external.notebooklm_client import NotebookLMClientWrapper
 from notecast.services.feed_service import FeedService
-from typing import Callable
-from notecast.core.models import User, Job, Episode, Artifact
-import asyncio # Assuming async operations
+from notecast.core.models import User, Job, Episode
+
+logger = logging.getLogger(__name__)
+
 
 class JobService:
     def __init__(
@@ -21,34 +27,33 @@ class JobService:
     async def process_job(self, user: User, job: Job, config: dict) -> None:
         repo = self._repo_factory(user)
         repo.update_job(user, job.id, status="processing")
+        nb_id: str | None = None
         try:
             async with await self._nb_client.session(user) as client:
                 nb = await client.create_notebook(job.title)
+                nb_id = nb.id
                 repo.update_job(user, job.id, notebook_id=nb.id)
 
                 await client.add_source(nb.id, url=job.episode_url)
                 await client.generate_audio(nb.id, style=job.style)
                 repo.update_job(user, job.id, status="generating")
-
-                artifact = await client.wait_for_audio(nb.id, job.id)
-                repo.update_job(user, job.id, artifact_id=artifact.id)
-
-                path = await self._storage.download_and_remux(
-                    client, user, job.feed_name, artifact
-                )
-                duration = self._storage.get_duration(path)
-                repo.update_job(user, job.id, status="done", duration=duration)
-
-                await client.delete_notebook(nb.id)
-                await self._feed_service.rebuild_feed(user, job.feed_name, job.feed_title)
+                # Harvester worker polls and completes download
 
         except Exception as exc:
-            await self._handle_failure(user, job, exc)
+            await self._handle_failure(user, job, exc, nb_id=nb_id)
+            raise
 
-    async def _handle_failure(self, user: User, job: Job, exc: Exception) -> None:
+    async def _handle_failure(
+        self, user: User, job: Job, exc: Exception, nb_id: str | None = None
+    ) -> None:
         repo = self._repo_factory(user)
-        # Placeholder for failure handling logic
         repo.update_job(user, job.id, status="failed", error_message=str(exc))
+        if nb_id:
+            try:
+                async with await self._nb_client.session(user) as client:
+                    await client.delete_notebook(nb_id)
+            except Exception as del_exc:
+                logger.warning("Could not delete orphaned notebook %s: %s", nb_id, del_exc)
         await asyncio.sleep(0)
 
     async def get_next_pending(self, user: User) -> Job | None:
