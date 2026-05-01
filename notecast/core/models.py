@@ -54,10 +54,11 @@ class Feed(BaseModel):
     """RSS feed configuration."""
 
     name: str
-    title: str
+    title: str = ""
     url: str
     style: str = "deep-dive"
     instructions: str = ""
+    max_episodes: int = 1  # max new episodes to queue per poll
 
 
 class Episode(BaseModel):
