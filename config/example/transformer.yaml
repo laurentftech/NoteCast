@@ -1,10 +1,12 @@
 feeds:
+  # RSS/Atom feed (podcast, newsletter, blog)
   - name: my-podcast
     url: "https://example.com/feed/podcast.rss"
     style: deep-dive
     max_episodes: 1
 
-  # - name: another-feed
-  #   url: "https://another.example.com/feed.rss"
+  # YouTube channel feed — NotebookLM handles YouTube URLs natively
+  # - name: my-yt-channel
+  #   url: "https://www.youtube.com/feeds/videos.xml?channel_id=CHANNEL_ID"
   #   style: deep-dive
-  #   max_episodes: 2
+  #   max_episodes: 1
