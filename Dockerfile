@@ -14,12 +14,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libatspi2.0-0 libx11-6 libxext6 libxcb1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN uv pip install --system --no-cache -r requirements.txt && \
+WORKDIR /app
+
+COPY pyproject.toml .
+COPY notecast/ notecast/
+
+RUN uv pip install --system --no-cache -e . && \
     python -m playwright install chromium
 
-COPY harvester.py .
-COPY rss_transformer.py .
-COPY main.py .
-
-CMD ["python", "main.py"]
+CMD ["python", "-m", "notecast"]

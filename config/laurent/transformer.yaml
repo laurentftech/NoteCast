@@ -1,0 +1,4 @@
+feeds:
+  - name: latent-space
+    url: "https://www.latent.space/feed"
+    style: deep-dive
