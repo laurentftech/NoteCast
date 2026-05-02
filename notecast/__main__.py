@@ -61,10 +61,11 @@ async def main():
     )
 
     job_service = JobService(
-        repo_factory=repo_factory,  # Will be called with user
+        repo_factory=repo_factory,
         storage=storage,
         nb_client=nb_client,
         feed_service=feed_service,
+        whisper_model=settings.whisper_model,
     )
 
     poller_service = PollerService(

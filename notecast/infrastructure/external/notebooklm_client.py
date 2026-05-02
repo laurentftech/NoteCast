@@ -61,6 +61,14 @@ class NotebookLMClientWrapper:
         except Exception as exc:
             raise NotebookLMError(f"Failed to add source: {exc}") from exc
 
+    async def add_source_file(self, notebook_id: str, file_path) -> None:
+        """Upload a local file (txt/pdf/md) as a source."""
+        from pathlib import Path
+        try:
+            await self._client.sources.add_file(notebook_id, Path(file_path), wait=True)
+        except Exception as exc:
+            raise NotebookLMError(f"Failed to add file source: {exc}") from exc
+
     async def generate_audio(self, notebook_id: str, style: str = "deep-dive") -> None:
         """Kick off audio generation; task_id stored for wait_for_audio."""
         try:

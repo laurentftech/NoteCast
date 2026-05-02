@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     feed_image_url: str = ""
     generation_timeout: int = 2700      # 45 min
     max_retries: int = 1
+    whisper_model: str = "base"         # faster-whisper model size
 
     model_config = SettingsConfigDict(
         env_file=".env",
