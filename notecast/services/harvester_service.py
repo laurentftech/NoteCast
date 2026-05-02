@@ -88,11 +88,10 @@ class HarvesterService:
                 style="deep-dive",
             )
             job = repo.create_job(user, episode)
-            repo.update_job(user, job.id,
-                            status="done",
-                            notebook_id=nb.id,
-                            artifact_id=artifact_id,
-                            duration=duration)
+            update = dict(status="done", notebook_id=nb.id, artifact_id=artifact_id, duration=duration)
+            if nb.created_at:
+                update["created_at"] = nb.created_at.isoformat()
+            repo.update_job(user, job.id, **update)
 
             logger.info("Imported orphaned notebook '%s' (%s)", nb.title, nb.id)
             imported += 1
