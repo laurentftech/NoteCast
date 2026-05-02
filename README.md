@@ -10,11 +10,17 @@ Turns your RSS feeds into AI-generated podcast episodes via NotebookLM, served o
 
 ## How it works
 
+**YouTube feeds** (natively supported by NotebookLM):
 ```
-RSS/YouTube feeds → poller → NotebookLM (audio overview) → download → RSS feed → Caddy (HTTPS)
+YouTube channel RSS → poller → NotebookLM (video URL) → audio overview → download → RSS feed
 ```
 
-NoteCast polls your configured RSS or YouTube feeds on a schedule, submits new items to NotebookLM for audio overview generation, downloads the resulting audio, and publishes a private RSS feed you can subscribe to in any podcast app.
+**Regular RSS/podcast feeds** (Whisper transcription path):
+```
+RSS/Atom feed → poller → Whisper (transcribe audio) → NotebookLM (transcript) → audio overview → download → RSS feed
+```
+
+NoteCast polls your configured feeds on a schedule. YouTube URLs are passed directly to NotebookLM, which understands them natively. For regular podcast or blog feeds, the audio is first transcribed locally via [faster-whisper](https://github.com/SYSTRAN/faster-whisper) and the transcript is submitted to NotebookLM as a source document.
 
 On startup the harvester also scans your existing NotebookLM notebooks and imports any audio that isn't tracked yet — nothing is lost after a reinstall.
 
@@ -87,6 +93,8 @@ feeds:
 Each `name` becomes a separate RSS feed (e.g. `/feed/default/my-podcast.xml?token=…`).
 
 `style` options: `brief` · `deep-dive` · `critique` · `debate`
+
+> **YouTube vs regular feeds:** YouTube channel URLs are passed directly to NotebookLM (native support). For all other feeds (podcasts, blogs), NoteCast downloads the audio and transcribes it locally with Whisper before submitting to NotebookLM. Whisper model size is controlled by `WHISPER_MODEL` (default: `base`). Larger models (`small`, `medium`, `large-v3`) are more accurate but slower and use more RAM.
 
 ### 5. Authenticate with NotebookLM
 
@@ -203,6 +211,7 @@ Each user's private feed URLs appear in the **Published Feeds** section of the a
 | `WEBHOOK_HEADERS` | no | *(none)* | JSON object of headers sent with each webhook — e.g. `{"Authorization": "Bearer token"}` |
 | `WEBHOOK_LINK` | no | *(none)* | URL included as `click` in ntfy notifications (e.g. Apple Podcasts deep link) |
 | `TOKEN_EXPIRY_WARN_DAYS` | no | `7` | Days before token expiry to send a warning notification |
+| `WHISPER_MODEL` | no | `base` | faster-whisper model for non-YouTube transcription: `tiny` · `base` · `small` · `medium` · `large-v3` |
 | `USERS` | no | *(none)* | Comma-separated user nicknames; enables multi-user mode |
 | `GOOGLE_CLIENT_ID` | no | *(none)* | Google OAuth client ID; required when `USERS` is set |
 | `USER_{NAME}_EMAIL` | multi | — | Google email for each user (e.g. `USER_ALICE_EMAIL`) |
