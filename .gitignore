@@ -20,7 +20,7 @@ ARCHITECTURE.md
 /.code-review-graph/
 /.github/
 /.kilocode/
-/config/*/transformer.yaml
+/config/**/transformer.yaml
 !/config/example/transformer.yaml
 /public/feed/
 /AGENTS.md
@@ -28,3 +28,9 @@ ARCHITECTURE.md
 /tests/.pytest_cache/
 .aider*
 .aider-desk/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.playwright-mcp/
