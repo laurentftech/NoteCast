@@ -1,6 +1,7 @@
 """Status handler."""
 import json
 import math
+import os
 import time
 from aiohttp import web
 
@@ -32,7 +33,7 @@ async def handle_status(request: web.Request) -> web.Response:
         "last_updated": last_updated,
         "feed_url": feed_url,
         "webhook_enabled": bool(settings.webhook_url),
-        "version": None,
+        "version": os.environ.get("APP_VERSION", "dev"),
     }
 
     expires = _auth_expires_in_days(user)
