@@ -99,3 +99,26 @@ async def test_auth_endpoint_returns_user_info(auth_client):
     data = await resp.json()
     assert data["authenticated"] is True
     assert data["user"] == "alice"
+
+
+async def test_upload_no_token_returns_401(auth_client):
+    resp = await auth_client.post("/api/auth/upload")
+    assert resp.status == 401
+
+
+async def test_upload_valid_credentials(auth_client):
+    import json
+    from aiohttp import FormData
+
+    creds = {"cookies": [], "origins": []}
+    fd = FormData()
+    fd.add_field("file", json.dumps(creds), filename="storage_state.json", content_type="application/json")
+
+    resp = await auth_client.post(
+        "/api/auth/upload",
+        data=fd,
+        headers={"Authorization": "Bearer test-token"},
+    )
+    assert resp.status == 200
+    data = await resp.json()
+    assert data["ok"] is True

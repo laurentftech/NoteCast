@@ -15,6 +15,7 @@ from notecast.api.http.handlers.episodes import handle_episodes
 from notecast.api.http.handlers.health import handle_health
 from notecast.api.http.handlers.poll import handle_poll
 from notecast.api.http.handlers.status import handle_status
+from notecast.api.http.handlers.upload import handle_upload
 from notecast.api.http.handlers.webhook import handle_webhook
 from notecast.api.http.middleware import auth_middleware, error_middleware
 from notecast.infrastructure.config.settings import Settings
@@ -73,6 +74,7 @@ def create_app(
     app.router.add_get("/api/episodes", handle_episodes)
     app.router.add_post("/api/poll", handle_poll)
     app.router.add_post("/api/auth", handle_auth)
+    app.router.add_post("/api/auth/upload", handle_upload)
     app.router.add_post("/api/webhook", handle_webhook)
     app.router.add_post("/api/webhook/test", handle_webhook_test)
 

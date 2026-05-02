@@ -86,7 +86,7 @@ Then push the credentials to the bridge:
 cp ~/.notebooklm/storage_state.json ./auth/
 
 # Or upload over the network (local or remote)
-curl -X POST http://your-server:8080/auth/upload \
+curl -X POST http://your-server:8080/api/auth/upload \
      -F "file=@$HOME/.notebooklm/storage_state.json"
 ```
 
@@ -169,7 +169,7 @@ The token is unguessable and stable (regenerated only if the token file is delet
 | `CADDY_DOMAIN` | yes | — | Domain for Caddy auto-HTTPS |
 | `POLL_INTERVAL` | no | `86400` | Seconds between automatic polls |
 | `RETENTION_DAYS` | no | `14` | Days before episodes are deleted |
-| `BRIDGE_API_KEY` | no | *(none)* | Protects `/auth/upload` and `/api/poll` — requests must include `X-Api-Key: <value>` |
+| `BRIDGE_API_KEY` | no | *(none)* | Protects `/api/auth/upload` and `/api/poll` — requests must include `X-Api-Key: <value>` |
 | `FEED_IMAGE_URL` | no | *(none)* | Cover art URL for the RSS feed (1400×1400px); auto-detected from `public/cover.jpg` if absent |
 | `BRIDGE_PORT` | no | `8080` | Internal HTTP port for the bridge |
 | `WEBHOOK_URL` | no | *(none)* | HTTP endpoint to POST when a new episode is downloaded (ntfy, Slack, Discord, …) |
@@ -217,7 +217,7 @@ Set `TOKEN_EXPIRY_WARN_DAYS` to adjust the warning window (default: `7`). Renew 
 | `GET` | `/api/episodes` | bearer / key | Episode list as JSON |
 | `POST` | `/api/poll` | bearer / key | Trigger an immediate poll |
 | `POST` | `/api/webhook/test` | bearer / key | Send a test webhook notification |
-| `POST` | `/auth/upload` | key | Upload a new `storage_state.json` |
+| `POST` | `/api/auth/upload` | bearer / key | Upload a new `storage_state.json` |
 | `GET` | `/health` | — | Health check |
 | `GET` | `/feed.xml` | — | RSS feed (single-user) |
 | `GET` | `/feed/{token}.xml` | — | RSS feed (multi-user, token in URL) |
