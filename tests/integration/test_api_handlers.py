@@ -24,7 +24,7 @@ def _make_user(name="alice", feed_token="test-token", email="alice@example.com")
     )
 
 
-def _make_app(google_client_id: str = "") -> web.Application:
+def _make_app(google_client_id: str = "", users: str = "alice") -> web.Application:
     user = _make_user()
     user_service = AsyncMock()
     user_service.get_all = AsyncMock(return_value=[user])
@@ -39,7 +39,7 @@ def _make_app(google_client_id: str = "") -> web.Application:
 
     settings = Settings.model_construct(
         base_url="http://localhost",
-        users="alice",
+        users=users,
         data_base=Path("/tmp/data"),
         public_dir=Path("/tmp/public"),
         webhook_url="",
@@ -60,14 +60,14 @@ def _make_app(google_client_id: str = "") -> web.Application:
 
 @pytest_asyncio.fixture
 async def client(aiohttp_client):
-    """No-auth mode (no google_client_id)."""
-    return await aiohttp_client(_make_app())
+    """No-auth mode: USERS empty → single-user, no sign-in."""
+    return await aiohttp_client(_make_app(users=""))
 
 
 @pytest_asyncio.fixture
 async def auth_client(aiohttp_client):
-    """Auth-required mode (google_client_id set)."""
-    return await aiohttp_client(_make_app(google_client_id="test-client-id"))
+    """Auth-required mode: USERS set + google_client_id."""
+    return await aiohttp_client(_make_app(google_client_id="test-client-id", users="alice"))
 
 
 async def test_health_no_auth_required(client):

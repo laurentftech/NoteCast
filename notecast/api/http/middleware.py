@@ -29,8 +29,8 @@ async def auth_middleware(
     user_service: "UserService" = request.app["user_service"]
     settings = request.app["settings"]
 
-    # No Google auth configured → single-user mode, use first user
-    if not settings.google_client_id:
+    # No USERS configured → single-user mode, no auth required
+    if not settings.users:
         users = await user_service.get_all()
         if users:
             request["user"] = users[0]
