@@ -79,7 +79,13 @@ def create_app(
     # Static files (index.html + audio episodes)
     static_path = Path(settings.public_dir)
     if static_path.exists():
-        app.router.add_static("/", static_path, name="static", show_index=True, follow_symlinks=True)
+        index = static_path / "index.html"
+
+        async def serve_index(request: web.Request) -> web.Response:
+            return web.FileResponse(index)
+
+        app.router.add_get("/", serve_index)
+        app.router.add_static("/", static_path, name="static", follow_symlinks=True)
 
     logger.info("HTTP server application created")
     return app
