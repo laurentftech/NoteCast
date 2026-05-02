@@ -130,3 +130,11 @@ class SQLiteJobRepository(JobRepository):
                 (user.name, episode_url)
             ).fetchone()
         return row is not None
+
+    def get_known_notebook_ids(self, user: User) -> set[str]:
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT notebook_id FROM jobs WHERE user_name=? AND notebook_id IS NOT NULL",
+                (user.name,)
+            ).fetchall()
+        return {row[0] for row in rows}

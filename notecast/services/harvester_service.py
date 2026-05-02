@@ -30,26 +30,76 @@ class HarvesterService:
         self._webhook = webhook
 
     async def harvest_user(self, user: User) -> None:
-        """Check for stuck generating jobs and complete them.
+        """Check for stuck generating jobs and scan for orphaned NotebookLM audio."""
+        if not user.auth_file.exists():
+            return
 
-        For each job with status='generating' and a known notebook_id,
-        connect to NotebookLM and download audio if it's ready.
-        """
         repo: JobRepository = self._repo_factory(user)
         stuck_jobs = repo.get_generating_jobs(user)
 
-        if not stuck_jobs:
+        async with await self._nb_client.session(user) as client:
+            if stuck_jobs:
+                logger.info("Recovering %d stuck job(s) for user %s", len(stuck_jobs), user.name)
+                for job in stuck_jobs:
+                    try:
+                        await self._recover_job(client, repo, user, job)
+                    except Exception as exc:
+                        logger.error("Failed to recover job %s: %s", job.id, exc)
+                        repo.update_job(user, job.id, status="failed")
+
+            await self._scan_orphaned_notebooks(client, repo, user)
+
+    async def _scan_orphaned_notebooks(self, client, repo: JobRepository, user: User) -> None:
+        """Import NotebookLM notebooks that have audio but no DB record."""
+        from notecast.core.models import Episode as EpisodeModel, Artifact as ArtifactModel
+        try:
+            notebooks = await client._client.notebooks.list()
+        except Exception as exc:
+            logger.warning("Could not list notebooks for user %s: %s", user.name, exc)
             return
 
-        logger.info("Harvesting %d stuck job(s) for user %s", len(stuck_jobs), user.name)
+        known_ids = repo.get_known_notebook_ids(user)
+        imported = 0
 
-        async with await self._nb_client.session(user) as client:
-            for job in stuck_jobs:
-                try:
-                    await self._recover_job(client, repo, user, job)
-                except Exception as exc:
-                    logger.error("Failed to recover job %s: %s", job.id, exc)
-                    repo.update_job(user, job.id, status="failed")
+        for nb in notebooks:
+            if nb.id in known_ids:
+                continue
+            try:
+                audio_list = await client._client.artifacts.list_audio(nb.id)
+            except Exception:
+                continue
+            if not audio_list:
+                continue
+
+            artifact_id = audio_list[0].id
+            artifact = ArtifactModel(id=artifact_id, notebook_id=nb.id)
+            try:
+                path = await self._storage.download_and_remux(client, user, "imported", artifact)
+                duration = self._storage.get_duration(path)
+            except Exception as exc:
+                logger.error("Failed to download orphaned notebook %s: %s", nb.id, exc)
+                continue
+
+            episode = EpisodeModel(
+                url=f"notebooklm://{nb.id}",
+                title=nb.title or nb.id,
+                feed_name="imported",
+                feed_title="Imported",
+                style="deep-dive",
+            )
+            job = repo.create_job(user, episode)
+            repo.update_job(user, job.id,
+                            status="done",
+                            notebook_id=nb.id,
+                            artifact_id=artifact_id,
+                            duration=duration)
+
+            logger.info("Imported orphaned notebook '%s' (%s)", nb.title, nb.id)
+            imported += 1
+            await self._feed_service.rebuild_feed(user, "imported", "Imported")
+
+        if imported:
+            logger.info("Imported %d orphaned notebook(s) for user %s", imported, user.name)
 
     async def _recover_job(self, client, repo: JobRepository, user: User, job) -> None:
         # Check if audio artifact exists on NotebookLM
