@@ -25,7 +25,7 @@ class TransformerWorker:
         self._job_service = job_service
         self._user_service = user_service
         self._settings = settings
-        self._poll_interval = poll_interval or settings.poll_interval
+        self._poll_interval = poll_interval or 10  # seconds between job queue checks
         self._running = False
 
     async def run(self) -> None:
