@@ -4,6 +4,7 @@ from typing import Optional
 
 from notecast.core.interfaces import JobRepository
 from notecast.core.models import User, Artifact
+from notecast.infrastructure.config.settings import Settings
 from notecast.infrastructure.external.notebooklm_client import NotebookLMClientWrapper
 from notecast.infrastructure.external.webhook_client import WebhookClient
 from notecast.infrastructure.storage.file_storage import LocalFileStorage
@@ -21,12 +22,14 @@ class HarvesterService:
         repo_factory,
         storage: LocalFileStorage,
         feed_service: FeedService,
+        settings: Settings,
         webhook: Optional[WebhookClient] = None,
     ):
         self._nb_client = nb_client
         self._repo_factory = repo_factory
         self._storage = storage
         self._feed_service = feed_service
+        self._settings = settings
         self._webhook = webhook
 
     async def harvest_user(self, user: User) -> None:
@@ -80,11 +83,12 @@ class HarvesterService:
                 logger.error("Failed to download orphaned notebook %s: %s", nb.id, exc)
                 continue
 
+            imported_title = self._settings.imported_feed_title
             episode = EpisodeModel(
                 url=f"notebooklm://{nb.id}",
                 title=nb.title or nb.id,
                 feed_name="imported",
-                feed_title="Imported",
+                feed_title=imported_title,
                 style="deep-dive",
             )
             job = repo.create_job(user, episode)
@@ -95,7 +99,7 @@ class HarvesterService:
 
             logger.info("Imported orphaned notebook '%s' (%s)", nb.title, nb.id)
             imported += 1
-            await self._feed_service.rebuild_feed(user, "imported", "Imported")
+            await self._feed_service.rebuild_feed(user, "imported", imported_title)
 
         if imported:
             logger.info("Imported %d orphaned notebook(s) for user %s", imported, user.name)

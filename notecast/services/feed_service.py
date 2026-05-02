@@ -65,11 +65,13 @@ class FeedService:
         feed_url = f"{base_url}/feed/{user.name}/{feed_name}.xml?token={user.feed_token}"
         ep_base = f"{base_url}/episodes/{user.name}/{feed_name}/"
 
+        image_url = self._settings.feed_image_url or f"{base_url}/cover.png"
         podcast = Podcast(
             name=feed_title,
             description=f"NoteCast audio overviews — {feed_title}",
             website=feed_url,
             explicit=False,
+            image=image_url,
         )
 
         for job in jobs:

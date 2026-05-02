@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     google_client_id: str = ""
     token_expiry_warn_days: int = 7
     feed_image_url: str = ""
+    imported_feed_title: str = "NoteCast - Imported Notebooks"
     generation_timeout: int = 2700      # 45 min
     max_retries: int = 1
     whisper_model: str = "base"         # faster-whisper model size

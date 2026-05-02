@@ -79,6 +79,7 @@ async def main():
         repo_factory=repo_factory,
         storage=storage,
         feed_service=feed_service,
+        settings=settings,
         webhook=webhook,
     )
 
