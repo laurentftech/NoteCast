@@ -691,6 +691,42 @@
       flex-shrink: 0;
     }
 
+    /* Feed badge on episode rows */
+    .ep-feed-badge {
+      display: inline-block;
+      font-size: 10.5px;
+      font-weight: 580;
+      padding: 1px 7px;
+      border-radius: 20px;
+      color: #fff;
+      opacity: .85;
+      white-space: nowrap;
+      flex-shrink: 0;
+      max-width: 100px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Published feeds list */
+    .feed-list { display: flex; flex-direction: column; gap: 8px; }
+    .feed-list-item {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      transition: border-color .12s;
+    }
+    .feed-list-item:hover { border-color: var(--border-strong); }
+    .feed-list-title {
+      font-size: 13px; font-weight: 600;
+      flex: 1; min-width: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .feed-list-count {
+      font-size: 11px; color: var(--text-3); font-weight: 500; flex-shrink: 0;
+    }
+
     /* Queue status pill */
     .queue-status {
       display: inline-flex; align-items: center; gap: 5px;
@@ -873,10 +909,9 @@
       <button class="btn" id="webhookTestBtn" style="padding:6px 12px;font-size:12px;">Test</button>
     </div>
 
-    <div class="section-label">RSS Feed</div>
-    <div class="rss-row">
-      <span class="rss-url" id="rssUrl">—</span>
-      <button class="btn" id="copyRss">Copy</button>
+    <div class="section-label">Published Feeds</div>
+    <div class="feed-list" id="feedList">
+      <div style="font-size:13px;color:var(--text-3);padding:8px 0">Loading…</div>
     </div>
 
     <div style="margin-top:22px">
@@ -1084,7 +1119,10 @@
     return _feedColorMap[feedName];
   }
 
-  function episodeRow(ep) {
+  function episodeRow(ep, showFeedBadge = false) {
+    const badge = showFeedBadge
+      ? `<span class="ep-feed-badge" style="background:${feedColor(ep.feed_name || 'imported')}">${escapeHtml(ep.notebook || ep.feed_name || '')}</span>`
+      : '';
     return `
       <div class="episode" id="ep-${escapeHtml(ep.id)}" data-id="${escapeHtml(ep.id)}" data-url="${escapeHtml(ep.url)}">
         <button class="play-btn" aria-label="Play ${escapeHtml(ep.title)}">
@@ -1097,6 +1135,7 @@
         </div>
         <div class="ep-aside">
           <span class="eq" aria-hidden="true"><span></span><span></span><span></span></span>
+          ${badge}
           ${ep.duration ? `<span class="ep-duration">${fmt(ep.duration)}</span>` : ''}
         </div>
       </div>`;
@@ -1151,11 +1190,11 @@
       }
 
       if (feedOrder.length === 1) {
-        // Single feed — flat list, no group header
+        // Single feed — flat list, no group header, no badge needed
         container.className = 'episodes';
-        container.innerHTML = episodes.map(episodeRow).join('');
+        container.innerHTML = episodes.map(ep => episodeRow(ep, false)).join('');
       } else {
-        // Multiple feeds — grouped
+        // Multiple feeds — grouped with headers, badge on each row
         container.className = '';
         container.innerHTML = feedOrder.map(fn => {
           const eps = byFeed[fn];
@@ -1168,7 +1207,7 @@
                 <span class="feed-group-title">${escapeHtml(label)}</span>
                 <span class="feed-group-count">${eps.length}</span>
               </div>
-              <div class="episodes">${eps.map(episodeRow).join('')}</div>
+              <div class="episodes">${eps.map(ep => episodeRow(ep, false)).join('')}</div>
             </div>`;
         }).join('');
       }
@@ -1261,6 +1300,7 @@
     overlay.classList.add('open');
     document.body.style.overflow = 'hidden';
     loadStatus();
+    loadFeeds();
   }
   function closeAdmin() {
     overlay.classList.remove('open');
@@ -1322,10 +1362,7 @@
       }
       document.getElementById('statUpdated').textContent = s.last_updated ? relTime(s.last_updated) : '—';
       if (s.version) document.getElementById('appVersion').textContent = `NoteCast ${s.version}`;
-      if (s.feed_url) {
-        feedUrl = s.feed_url;
-        document.getElementById('rssUrl').textContent = feedUrl;
-      }
+      if (s.feed_url) feedUrl = s.feed_url;
       const webhookRow = document.getElementById('webhookRow');
       webhookRow.style.display = s.webhook_enabled ? 'flex' : 'none';
       
@@ -1379,14 +1416,43 @@
     });
   });
 
-  document.getElementById('rssUrl').textContent = feedUrl;
-  document.getElementById('copyRss').addEventListener('click', () => {
-    navigator.clipboard.writeText(feedUrl).then(() => {
-      const btn = document.getElementById('copyRss');
+  function copyFeedUrl(btn, url) {
+    navigator.clipboard.writeText(url).then(() => {
+      const orig = btn.textContent;
       btn.textContent = 'Copied!';
-      setTimeout(() => btn.textContent = 'Copy', 1500);
+      setTimeout(() => { btn.textContent = orig; }, 1500);
     });
-  });
+  }
+
+  async function loadFeeds() {
+    const container = document.getElementById('feedList');
+    try {
+      const feeds = await authFetch('/api/feeds').then(r => r.json());
+      if (!feeds.length) {
+        container.innerHTML = '<div style="font-size:13px;color:var(--text-3);padding:8px 0">No feeds yet</div>';
+        document.getElementById('copyFeedWrap').style.display = 'none';
+        return;
+      }
+      container.innerHTML = feeds.map(f => `
+        <div class="feed-list-item">
+          <span class="feed-dot" style="background:${feedColor(f.name)}"></span>
+          <span class="feed-list-title">${escapeHtml(f.title)}</span>
+          <span class="feed-list-count">${f.episode_count} ep</span>
+          <button class="btn" style="padding:5px 10px;font-size:11px;flex-shrink:0"
+                  onclick="copyFeedUrl(this,${JSON.stringify(f.url)})">Copy URL</button>
+        </div>`).join('');
+
+      // Header RSS button: show only for single feed, use that URL
+      if (feeds.length === 1) {
+        feedUrl = feeds[0].url;
+        document.getElementById('copyFeedWrap').style.display = '';
+      } else {
+        document.getElementById('copyFeedWrap').style.display = 'none';
+      }
+    } catch {
+      container.innerHTML = '<div style="font-size:13px;color:var(--text-3);padding:8px 0">Could not load feeds</div>';
+    }
+  }
 
   const authFile = document.getElementById('authFile');
   authFile.addEventListener('change', () => {

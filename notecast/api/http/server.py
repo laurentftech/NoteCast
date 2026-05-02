@@ -12,6 +12,7 @@ from aiohttp.web_response import StreamResponse
 from notecast.api.http.handlers.auth import handle_auth
 from notecast.api.http.handlers.config import handle_config
 from notecast.api.http.handlers.episodes import handle_episodes
+from notecast.api.http.handlers.feeds import handle_feeds
 from notecast.api.http.handlers.health import handle_health
 from notecast.api.http.handlers.poll import handle_poll
 from notecast.api.http.handlers.status import handle_status
@@ -72,6 +73,7 @@ def create_app(
     # Authenticated API routes
     app.router.add_get("/api/status", handle_status)
     app.router.add_get("/api/episodes", handle_episodes)
+    app.router.add_get("/api/feeds", handle_feeds)
     app.router.add_post("/api/poll", handle_poll)
     app.router.add_post("/api/auth", handle_auth)
     app.router.add_post("/api/auth/upload", handle_upload)
