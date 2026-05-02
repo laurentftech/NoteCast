@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_PUBLIC_ROUTES = {"/health", "/config"}
+_PUBLIC_ROUTES = {"/api/health", "/api/config"}
 
 
 async def auth_middleware(

@@ -15,7 +15,7 @@ def _make_user(name="alice", feed_token="test-token", email="alice@example.com")
     return User(
         name=name,
         email=email,
-        auth_file=Path("/tmp/auth"),
+        auth_file=Path("/tmp/api/auth"),
         db_file=Path("/tmp/jobs.db"),
         history_file=Path("/tmp/history.json"),
         episodes_dir=Path("/tmp/episodes"),
@@ -65,22 +65,22 @@ async def client(aiohttp_client):
 
 
 async def test_health_no_auth_required(client):
-    resp = await client.get("/health")
+    resp = await client.get("/api/health")
     assert resp.status == 200
 
 
 async def test_protected_route_no_token_returns_401(client):
-    resp = await client.post("/poll")
+    resp = await client.post("/api/poll")
     assert resp.status == 401
 
 
 async def test_protected_route_wrong_token_returns_401(client):
-    resp = await client.post("/poll", headers={"Authorization": "Bearer wrong"})
+    resp = await client.post("/api/poll", headers={"Authorization": "Bearer wrong"})
     assert resp.status == 401
 
 
 async def test_poll_with_valid_token_returns_queued_count(client):
-    resp = await client.post("/poll", headers={"Authorization": "Bearer test-token"})
+    resp = await client.post("/api/poll", headers={"Authorization": "Bearer test-token"})
     assert resp.status == 200
     data = await resp.json()
     assert "queued" in data
@@ -88,7 +88,7 @@ async def test_poll_with_valid_token_returns_queued_count(client):
 
 
 async def test_auth_endpoint_returns_user_info(client):
-    resp = await client.post("/auth", headers={"Authorization": "Bearer test-token"})
+    resp = await client.post("/api/auth", headers={"Authorization": "Bearer test-token"})
     assert resp.status == 200
     data = await resp.json()
     assert data["authenticated"] is True

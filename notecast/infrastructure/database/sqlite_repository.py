@@ -107,6 +107,14 @@ class SQLiteJobRepository(JobRepository):
             ).fetchall()
         return [Job(**dict(row)) for row in rows]
 
+    def get_all_done_jobs(self, user: User) -> List[Job]:
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM jobs WHERE user_name=? AND status='done' ORDER BY created_at DESC",
+                (user.name,)
+            ).fetchall()
+        return [Job(**dict(row)) for row in rows]
+
     def get_generating_jobs(self, user: User) -> List[Job]:
         with self._conn() as conn:
             rows = conn.execute(

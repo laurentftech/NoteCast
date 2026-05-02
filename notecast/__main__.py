@@ -119,6 +119,7 @@ async def main():
         user_service=user_service,
         storage=storage,
         harvester_service=harvester_service,
+        repo_factory=repo_factory,
     )
     runner = web.AppRunner(app)
     await runner.setup()
