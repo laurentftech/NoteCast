@@ -19,5 +19,6 @@ async def handle_config(request: web.Request) -> web.Response:
         "feed_image_url": settings.feed_image_url,
         "token_expiry_warn_days": settings.token_expiry_warn_days,
         "generation_timeout": settings.generation_timeout,
+        "google_client_id": settings.google_client_id or None,
     }
     return web.json_response(config)
