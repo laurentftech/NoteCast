@@ -1,9 +1,8 @@
 # NoteCast
 
-Turns your NotebookLM audio overviews into a personal podcast feed.
+Turns your RSS feeds into AI-generated podcast episodes via NotebookLM, served over HTTPS.
 
 > **Disclaimer:** NoteCast uses [notebooklm-py](https://github.com/teng-lin/notebooklm-py), an **unofficial** reverse-engineered client for NotebookLM. It is not affiliated with or endorsed by Google. Use at your own risk — Google may change their API or ToS at any time.
-
 
 ![NoteCast web UI](docs/notecast-web.png)
 
@@ -12,14 +11,16 @@ Turns your NotebookLM audio overviews into a personal podcast feed.
 ## How it works
 
 ```
-NotebookLM → notebooklm-py → harvester.py → MP3 → RSS feed → Caddy (HTTPS)
+RSS/YouTube feeds → poller → NotebookLM (audio overview) → download → RSS feed → Caddy (HTTPS)
 ```
 
-`notecast-bridge` polls all your notebooks every day (customizable), downloads new audio artifacts, converts them to MP3, and updates an RSS feed you can subscribe to in any podcast app.
+NoteCast polls your configured RSS or YouTube feeds on a schedule, submits new items to NotebookLM for audio overview generation, downloads the resulting audio, and publishes a private RSS feed you can subscribe to in any podcast app.
+
+On startup the harvester also scans your existing NotebookLM notebooks and imports any audio that isn't tracked yet — nothing is lost after a reinstall.
 
 NoteCast supports two modes:
-- **Single-user** (default) — no login required, one feed at `/feed.xml`
-- **Multi-user** — Google sign-in for the web UI, one private feed URL per user
+- **Single-user** (default) — no login required, feeds at `/feed/default/{name}.xml?token=…`
+- **Multi-user** — Google sign-in for the web UI, one private feed URL per user per feed
 
 ---
 
@@ -36,19 +37,18 @@ NoteCast supports two modes:
 curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/docker-compose.yml
 curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/Caddyfile
 curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/.env.example
-mkdir -p auth data public/episodes
+mkdir -p auth data public/episodes config
 curl -o public/index.html https://raw.githubusercontent.com/laurentftech/NoteCast/main/public/index.html
-mkdir -p config
-curl -o config/transformer.yaml https://raw.githubusercontent.com/laurentftech/NoteCast/main/bridge/transformer.yaml.example
+curl -o config/transformer.yaml https://raw.githubusercontent.com/laurentftech/NoteCast/main/config/example/transformer.yaml
 ```
 
-The bridge image (`ghcr.io/laurentftech/notecast:latest`) is pulled automatically.
+The image (`ghcr.io/laurentftech/notecast:latest`) is pulled automatically.
 
 > **Build from source:** clone the repo and add a `docker-compose.override.yml`:
 > ```yaml
 > services:
 >   notecast-bridge:
->     build: ./bridge
+>     build: .
 >     image: notecast-bridge
 > ```
 
@@ -63,58 +63,79 @@ Edit `.env`:
 ```env
 BASE_URL=https://podcast.yourdomain.com   # public URL of this server
 CADDY_DOMAIN=podcast.yourdomain.com       # same host, no protocol
-TRANSFORMER_CONFIG=/config/transformer.yaml
 ```
 
-`TRANSFORMER_CONFIG` points to the YAML file inside the container. The file itself stays outside the container at `./config/transformer.yaml`.
+### 4. Configure RSS feeds
 
-### 4. Authenticate with NotebookLM
+Edit `config/transformer.yaml`:
 
-Login requires a real browser window. Run it on any machine with a display — your Mac, a laptop, etc.
+```yaml
+feeds:
+  # Regular RSS/Atom feed (podcast, newsletter, blog)
+  - name: my-podcast
+    url: "https://example.com/feed/podcast.rss"
+    style: deep-dive
+    max_episodes: 1
+
+  # YouTube channel — NotebookLM handles YouTube URLs natively
+  - name: my-yt-channel
+    url: "https://www.youtube.com/feeds/videos.xml?channel_id=CHANNEL_ID"
+    style: deep-dive
+    max_episodes: 1
+```
+
+Each `name` becomes a separate RSS feed (e.g. `/feed/default/my-podcast.xml?token=…`).
+
+`style` options: `brief` · `deep-dive` · `critique` · `debate`
+
+### 5. Authenticate with NotebookLM
+
+Login requires a real browser. Run it on any machine with a display — your Mac, a laptop, etc.
 
 ```bash
-pip3.10 install notebooklm-py playwright
-python3.10 -m playwright install chromium
+pip install notebooklm-py playwright
+python -m playwright install chromium
 notebooklm login
 # A browser window opens → sign in with Google → closes automatically
 ```
 
-Then push the credentials to the bridge:
+Then push the credentials to the container:
 
 ```bash
 # Single-user: copy directly
 cp ~/.notebooklm/storage_state.json ./auth/
 
-# Or upload over the network (local or remote)
+# Or upload over the network
 curl -X POST http://your-server:8080/api/auth/upload \
      -F "file=@$HOME/.notebooklm/storage_state.json"
 ```
 
-The bridge picks up credentials immediately — no restart needed.
+Alternatively, use **Admin panel → Upload credentials** in the web UI after the container is running. Credentials take effect immediately — no restart needed.
 
 > **Tip:** set `BRIDGE_API_KEY` in `.env` to protect the upload endpoint. Add `-H "X-Api-Key: yourkey"` to the curl command.
 
-### 5. Subscribe
+### 6. Start
 
-Your feed is live at:
-
+```bash
+docker compose up -d
+docker compose logs -f notecast-bridge
 ```
-https://podcast.yourdomain.com/feed.xml
-```
 
-Paste this URL into Overcast, Pocket Casts, Apple Podcasts, or any RSS-capable app.
+### 7. Subscribe
+
+Open the web UI at your domain, click the settings icon, and copy the RSS URL from the **Published Feeds** section. Paste into Overcast, Pocket Casts, Apple Podcasts, or any RSS-capable app.
 
 ---
 
 ## Multi-user setup
 
-Multiple users each get an independent feed, episode library, and NotebookLM session. The web UI requires Google sign-in.
+Multiple users each get independent feeds, episode libraries, and NotebookLM sessions. The web UI requires Google sign-in.
 
 ### 1. Create a Google OAuth client
 
 1. Go to [console.cloud.google.com](https://console.cloud.google.com) → **APIs & Services** → **Credentials**
 2. Create an OAuth 2.0 Client ID → type **Web application**
-3. Under **Authorised JavaScript origins**, add your `BASE_URL` (e.g. `https://podcast.yourdomain.com`) and `http://localhost` for local testing
+3. Under **Authorised JavaScript origins**, add your `BASE_URL` and `http://localhost` for local testing
 4. Copy the **Client ID**
 
 Also add your domain under **APIs & Services** → **OAuth consent screen** → **Authorised domains**.
@@ -132,32 +153,38 @@ USER_BOB_EMAIL=bob@gmail.com
 # Google OAuth client ID (enables sign-in button in the web UI)
 GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 
-# Optional: per-user webhooks (fall back to global WEBHOOK_URL if not set)
+# Optional: per-user webhooks
 # USER_ALICE_WEBHOOK_URL=https://ntfy.sh/alice-notecast
 # USER_BOB_WEBHOOK_URL=https://ntfy.sh/bob-notecast
 ```
 
-### 3. Authenticate each user
+### 3. Per-user RSS feeds (optional)
 
-Each user must authenticate separately. Run `notebooklm login` for each account, then place the credentials in the right slot:
+Place a `transformer.yaml` under `config/{name}/` to give a user their own feed list. Falls back to `config/transformer.yaml` if absent.
+
+```
+config/
+├── transformer.yaml        # shared / single-user config
+├── alice/
+│   └── transformer.yaml    # alice-specific feeds
+└── bob/
+    └── transformer.yaml    # bob-specific feeds
+```
+
+### 4. Authenticate each user
+
+Each user must authenticate separately. Run `notebooklm login` for each account, then place the credentials:
 
 ```bash
-# Copy directly on the server (simplest)
 cp storage_state_alice.json ./auth/alice/storage_state.json
 cp storage_state_bob.json   ./auth/bob/storage_state.json
 ```
 
-Alternatively, each user can upload via the web UI: sign in with Google, open the admin panel, and use the **Re-authenticate** section. The file is saved to that user's slot automatically.
+Or each user can upload via the web UI: sign in with Google, open the admin panel, and use the **Upload credentials** section.
 
-### 4. Subscribe
+### 5. Subscribe
 
-Each user gets a private feed URL with a secret token — find it in the admin panel or in the bridge startup logs:
-
-```
-https://podcast.yourdomain.com/feed/aBcDeFgH....xml
-```
-
-The token is unguessable and stable (regenerated only if the token file is deleted). Podcast apps use this URL directly — no OAuth needed.
+Each user's private feed URLs appear in the **Published Feeds** section of the admin panel. The token is unguessable and stable — podcast apps use this URL directly, no OAuth needed.
 
 ---
 
@@ -167,15 +194,15 @@ The token is unguessable and stable (regenerated only if the token file is delet
 |---|---|---|---|
 | `BASE_URL` | yes | — | Public URL used in RSS episode links |
 | `CADDY_DOMAIN` | yes | — | Domain for Caddy auto-HTTPS |
-| `POLL_INTERVAL` | no | `86400` | Seconds between automatic polls |
+| `POLL_INTERVAL` | no | `86400` | Seconds between automatic feed polls |
 | `RETENTION_DAYS` | no | `14` | Days before episodes are deleted |
 | `BRIDGE_API_KEY` | no | *(none)* | Protects `/api/auth/upload` and `/api/poll` — requests must include `X-Api-Key: <value>` |
-| `FEED_IMAGE_URL` | no | *(none)* | Cover art URL for the RSS feed (1400×1400px); auto-detected from `public/cover.jpg` if absent |
-| `BRIDGE_PORT` | no | `8080` | Internal HTTP port for the bridge |
-| `WEBHOOK_URL` | no | *(none)* | HTTP endpoint to POST when a new episode is downloaded (ntfy, Slack, Discord, …) |
+| `FEED_IMAGE_URL` | no | *(none)* | Cover art URL for RSS feeds (1400×1400px); auto-detected from `public/cover.jpg` if absent |
+| `BRIDGE_PORT` | no | `8080` | Internal HTTP port |
+| `WEBHOOK_URL` | no | *(none)* | HTTP endpoint to POST when a new episode is ready (ntfy, Slack, Discord, …) |
 | `WEBHOOK_HEADERS` | no | *(none)* | JSON object of headers sent with each webhook — e.g. `{"Authorization": "Bearer token"}` |
 | `WEBHOOK_LINK` | no | *(none)* | URL included as `click` in ntfy notifications (e.g. Apple Podcasts deep link) |
-| `TOKEN_EXPIRY_WARN_DAYS` | no | `7` | Days before token expiry to send a warning (requires `WEBHOOK_URL`) |
+| `TOKEN_EXPIRY_WARN_DAYS` | no | `7` | Days before token expiry to send a warning notification |
 | `USERS` | no | *(none)* | Comma-separated user nicknames; enables multi-user mode |
 | `GOOGLE_CLIENT_ID` | no | *(none)* | Google OAuth client ID; required when `USERS` is set |
 | `USER_{NAME}_EMAIL` | multi | — | Google email for each user (e.g. `USER_ALICE_EMAIL`) |
@@ -193,7 +220,7 @@ The admin panel displays your NotebookLM token expiry with color-coded warnings:
 - **Orange** — 2–7 days remaining
 - **Red** — expires today, tomorrow, or already expired
 
-When `WEBHOOK_URL` is configured, the bridge sends a plain-text notification when the token is within the warning threshold. Notifications are rate-limited to once per 24 hours. The request uses ntfy-compatible headers:
+When `WEBHOOK_URL` is configured, the bridge sends a notification when the token is within the warning window. Notifications are rate-limited to once per 24 hours. The request uses ntfy-compatible headers:
 
 ```
 POST https://ntfy.sh/your-topic
@@ -204,7 +231,7 @@ Content-Type: text/plain
 NotebookLM token expires in 3 day(s)
 ```
 
-Set `TOKEN_EXPIRY_WARN_DAYS` to adjust the warning window (default: `7`). Renew by running `notebooklm login` again and re-uploading `storage_state.json`.
+Renew by running `notebooklm login` again and re-uploading `storage_state.json` (via the web UI or curl).
 
 ---
 
@@ -212,33 +239,43 @@ Set `TOKEN_EXPIRY_WARN_DAYS` to adjust the warning window (default: `7`). Renew 
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/api/config` | — | Returns `google_client_id` and `multi_user` flag for the web UI |
-| `GET` | `/api/status` | bearer / key | Bridge status: episode count, next poll, token expiry, feed URL |
+| `GET` | `/api/health` | — | Health check |
+| `GET` | `/api/config` | — | Public settings for the web UI (includes `google_client_id`) |
+| `GET` | `/api/status` | bearer / key | Bridge status: episode count, queue, token expiry |
 | `GET` | `/api/episodes` | bearer / key | Episode list as JSON |
+| `GET` | `/api/feeds` | bearer / key | Published RSS feeds with URLs and episode counts |
 | `POST` | `/api/poll` | bearer / key | Trigger an immediate poll |
 | `POST` | `/api/webhook/test` | bearer / key | Send a test webhook notification |
 | `POST` | `/api/auth/upload` | bearer / key | Upload a new `storage_state.json` |
-| `GET` | `/health` | — | Health check |
-| `GET` | `/feed.xml` | — | RSS feed (single-user) |
-| `GET` | `/feed/{token}.xml` | — | RSS feed (multi-user, token in URL) |
+| `GET` | `/feed/{user}/{name}.xml` | token in query | RSS feed (e.g. `?token=abc123`) |
 
-*bearer = `Authorization: Bearer <google-id-token>` (multi-user mode)*  
+*bearer = `Authorization: Bearer <google-id-token>` (multi-user mode)*
 *key = `X-Api-Key: <value>` when `BRIDGE_API_KEY` is set*
 
 **`/api/status` response**
 ```json
 {
-  "version": "0.11.0",
+  "version": "0.13.0-beta.4",
   "episodes": 42,
+  "pending": 2,
+  "generating": 1,
   "last_updated": "2026-04-28T20:00:00+00:00",
-  "next_poll_in": 43200,
   "webhook_enabled": true,
-  "feed_url": "https://podcast.yourdomain.com/feed/aBcDeFgH....xml",
-  "token_expires_in_days": 7,
-  "token_expires_at_iso": "2026-05-26T12:00:00+00:00"
+  "token_expires_in_days": 23
 }
 ```
-`token_expires_*` fields are omitted if no credentials are loaded.
+
+**`/api/feeds` response**
+```json
+[
+  {
+    "name": "latent-space",
+    "title": "Latent Space",
+    "episode_count": 12,
+    "url": "https://podcast.yourdomain.com/feed/alice/latent-space.xml?token=abc123"
+  }
+]
+```
 
 ---
 
@@ -248,14 +285,20 @@ Set `TOKEN_EXPIRY_WARN_DAYS` to adjust the warning window (default: `7`). Renew 
 ```
 .
 ├── auth/
-│   └── storage_state.json   # NotebookLM credentials
+│   └── storage_state.json        # NotebookLM credentials
+├── config/
+│   └── transformer.yaml          # RSS feed definitions
 ├── data/
-│   ├── history.json          # Downloaded episodes index
-│   └── .feed_token           # Secret feed token
+│   ├── jobs.db                   # Episode database
+│   └── .feed_token               # Secret feed token
 ├── public/
 │   ├── index.html
-│   ├── feed.xml              # RSS feed
-│   └── episodes/             # MP3 files
+│   ├── episodes/
+│   │   └── default/
+│   │       └── {feed-name}/      # Audio files (.m4a)
+│   └── feed/
+│       └── default/
+│           └── {feed-name}.xml   # RSS feeds
 ├── docker-compose.yml
 ├── Caddyfile
 └── .env
@@ -269,21 +312,30 @@ Set `TOKEN_EXPIRY_WARN_DAYS` to adjust the warning window (default: `7`). Renew 
 │   │   └── storage_state.json
 │   └── bob/
 │       └── storage_state.json
+├── config/
+│   ├── transformer.yaml          # shared fallback
+│   ├── alice/
+│   │   └── transformer.yaml
+│   └── bob/
+│       └── transformer.yaml
 ├── data/
 │   ├── alice/
-│   │   ├── history.json
+│   │   ├── jobs.db
 │   │   └── .feed_token
 │   └── bob/
-│       ├── history.json
+│       ├── jobs.db
 │       └── .feed_token
 ├── public/
-│   ├── index.html
 │   ├── episodes/
 │   │   ├── alice/
+│   │   │   └── {feed-name}/
 │   │   └── bob/
+│   │       └── {feed-name}/
 │   └── feed/
-│       ├── <alice-token>.xml
-│       └── <bob-token>.xml
+│       ├── alice/
+│       │   └── {feed-name}.xml
+│       └── bob/
+│           └── {feed-name}.xml
 ├── docker-compose.yml
 ├── Caddyfile
 └── .env
@@ -300,13 +352,13 @@ docker compose pull
 docker compose up -d
 ```
 
-Episode files and credentials are untouched. The bridge container is replaced with the new image; `index.html` is updated in place.
+Episode files and credentials are untouched. The container is replaced with the new image; `index.html` is updated in place.
 
 **On Synology (Container Manager UI)**
 1. *Registry* → search `ghcr.io/laurentftech/notecast` → Download latest
 2. *Container* → select `notecast-bridge` → Action → Stop → Clear → Start
 
-Or SSH into the NAS and run the commands above from the folder containing `docker-compose.yml`.
+Or SSH into the NAS and run the commands above.
 
 ---
 
@@ -316,17 +368,24 @@ Or SSH into the NAS and run the commands above from the folder containing `docke
 ```bash
 docker compose logs notecast-bridge
 ```
-Most likely: credentials missing. Follow step 4 above.
+Most likely cause: credentials missing or malformed. Follow step 5 above.
 
-**Feed is empty**
-- Check notebooks have audio overviews generated in NotebookLM
-- `docker compose logs notecast-bridge` — look for "Processing new audio artifact"
+**No episodes appear**
+- Verify `config/transformer.yaml` has at least one feed configured
+- Check that notebooks have audio overviews in NotebookLM
+- `docker compose logs notecast-bridge` — look for `Imported orphaned notebook` or `Recovered job`
+- Trigger a manual scan: `POST /api/poll`
 
-**Sign-in button doesn't appear**
+**Feed is empty but episodes exist**
+- Verify `BASE_URL` is set correctly — episode audio URLs are built from it
+- Verify `PUBLIC_DIR=/public` and `DATA_BASE=/data` are set in `docker-compose.yml` environment section
+
+**Sign-in button doesn't appear (multi-user)**
 - Verify `GOOGLE_CLIENT_ID` is set in `.env`
-- Verify the page origin is listed under Authorised JavaScript origins in Google Cloud Console
+- Verify the page origin is listed under **Authorised JavaScript origins** in Google Cloud Console
+- Check browser console for GIS script load errors
 
 **HTTPS not working**
 - Verify `CADDY_DOMAIN` matches your DNS A record
 - Ports 80 and 443 must be open on your firewall
-- See Caddy [documentation](https://caddyserver.com) for more details
+- See [Caddy documentation](https://caddyserver.com) for details
