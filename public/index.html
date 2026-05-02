@@ -162,6 +162,22 @@
       opacity: 0; transition: opacity 0.15s;
     }
     .copy-wrap.copied::after { opacity: 1; }
+    .feed-dropdown {
+      position: absolute; top: calc(100% + 8px); right: 0;
+      background: var(--surface-1); border: 1px solid var(--border);
+      border-radius: var(--radius); box-shadow: 0 8px 24px rgba(0,0,0,.15);
+      min-width: 280px; z-index: 200; overflow: hidden;
+      opacity: 0; pointer-events: none; transform: translateY(-4px);
+      transition: opacity 0.15s, transform 0.15s;
+    }
+    .feed-dropdown.open { opacity: 1; pointer-events: auto; transform: translateY(0); }
+    .feed-dropdown-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 12px; border-bottom: 1px solid var(--border);
+    }
+    .feed-dropdown-item:last-child { border-bottom: none; }
+    .feed-dropdown-name { flex: 1; font-size: 13px; color: var(--text-1); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .feed-dropdown-copy { font-size: 11px; padding: 4px 10px; flex-shrink: 0; }
 
     .btn {
       display: inline-flex; align-items: center; gap: 6px;
@@ -792,6 +808,7 @@
       <button class="btn btn-icon" id="copyFeedBtn" title="Copy RSS feed URL" aria-label="Copy RSS feed URL">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
       </button>
+      <div class="feed-dropdown" id="feedDropdown"></div>
     </div>
     <button class="btn btn-icon" id="signOutBtn" title="Sign out" aria-label="Sign out" style="display:none">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -1409,11 +1426,24 @@
   let feedUrl = `${location.origin}/feed.xml`;
 
   document.getElementById('copyFeedBtn').addEventListener('click', () => {
-    navigator.clipboard.writeText(feedUrl).then(() => {
-      const wrap = document.getElementById('copyFeedWrap');
-      wrap.classList.add('copied');
-      setTimeout(() => wrap.classList.remove('copied'), 1500);
-    });
+    if (feedUrl) {
+      // Single feed — copy directly
+      navigator.clipboard.writeText(feedUrl).then(() => {
+        const wrap = document.getElementById('copyFeedWrap');
+        wrap.classList.add('copied');
+        setTimeout(() => wrap.classList.remove('copied'), 1500);
+      });
+    } else {
+      // Multi feed — toggle dropdown
+      document.getElementById('feedDropdown').classList.toggle('open');
+    }
+  });
+
+  // Close dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!document.getElementById('copyFeedWrap').contains(e.target)) {
+      document.getElementById('feedDropdown').classList.remove('open');
+    }
   });
 
   function copyFeedUrl(btn, url) {
@@ -1424,15 +1454,20 @@
     });
   }
 
+  let _feedsData = [];
+
   async function loadFeeds() {
     const container = document.getElementById('feedList');
     try {
       const feeds = await authFetch('/api/feeds').then(r => r.json());
+      _feedsData = feeds;
       if (!feeds.length) {
         container.innerHTML = '<div style="font-size:13px;color:var(--text-3);padding:8px 0">No feeds yet</div>';
         document.getElementById('copyFeedWrap').style.display = 'none';
         return;
       }
+
+      // Admin panel list
       container.innerHTML = feeds.map(f => `
         <div class="feed-list-item">
           <span class="feed-dot" style="background:${feedColor(f.name)}"></span>
@@ -1441,17 +1476,32 @@
           <button class="btn feed-copy-btn" style="padding:5px 10px;font-size:11px;flex-shrink:0"
                   data-url="${escapeHtml(f.url)}">Copy URL</button>
         </div>`).join('');
-
       container.querySelectorAll('.feed-copy-btn').forEach(btn => {
         btn.addEventListener('click', () => copyFeedUrl(btn, btn.dataset.url));
       });
 
-      // Header RSS button: show only for single feed, use that URL
+      // Header RSS button — always show, single feed copies directly, multi opens dropdown
+      document.getElementById('copyFeedWrap').style.display = '';
       if (feeds.length === 1) {
         feedUrl = feeds[0].url;
-        document.getElementById('copyFeedWrap').style.display = '';
+        document.getElementById('feedDropdown').style.display = 'none';
       } else {
-        document.getElementById('copyFeedWrap').style.display = 'none';
+        feedUrl = null;
+        const dropdown = document.getElementById('feedDropdown');
+        dropdown.style.display = '';
+        dropdown.innerHTML = feeds.map(f => `
+          <div class="feed-dropdown-item">
+            <span class="feed-dot" style="background:${feedColor(f.name)};flex-shrink:0"></span>
+            <span class="feed-dropdown-name">${escapeHtml(f.title)}</span>
+            <button class="btn feed-dropdown-copy" data-url="${escapeHtml(f.url)}">Copy</button>
+          </div>`).join('');
+        dropdown.querySelectorAll('.feed-dropdown-copy').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            copyFeedUrl(btn, btn.dataset.url);
+            dropdown.classList.remove('open');
+          });
+        });
       }
     } catch {
       container.innerHTML = '<div style="font-size:13px;color:var(--text-3);padding:8px 0">Could not load feeds</div>';
