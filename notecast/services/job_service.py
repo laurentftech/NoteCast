@@ -14,9 +14,11 @@ logger = logging.getLogger(__name__)
 _AUDIO_EXTS = {".mp3", ".m4a", ".ogg", ".wav", ".flac", ".aac", ".opus"}
 
 
+_YOUTUBE_HOSTS = {"youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"}
+
 def _is_youtube(url: str) -> bool:
     host = urlparse(url).netloc.lower()
-    return "youtube.com" in host or "youtu.be" in host
+    return host in _YOUTUBE_HOSTS or host.endswith(".youtube.com")
 
 
 def _is_audio(url: str) -> bool:

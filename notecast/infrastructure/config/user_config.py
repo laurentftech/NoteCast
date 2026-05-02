@@ -30,14 +30,20 @@ def load_user_config(user) -> list[Feed]:
 
 
 def _warn_bad_url(feed: Feed) -> None:
-    if "youtube.com/playlist?list=" in feed.url:
-        playlist_id = feed.url.split("list=")[-1].split("&")[0]
+    from urllib.parse import urlparse, parse_qs
+    parsed = urlparse(feed.url)
+    host = parsed.netloc.lower()
+    path = parsed.path
+    qs = parse_qs(parsed.query)
+    is_youtube = host in ("youtube.com", "www.youtube.com") or host.endswith(".youtube.com")
+    if is_youtube and "list" in qs and "/feeds/" not in path:
+        playlist_id = qs["list"][0]
         logger.warning(
             "Feed '%s': YouTube playlist URL is not RSS — use: "
             "https://www.youtube.com/feeds/videos.xml?playlist_id=%s",
             feed.name, playlist_id,
         )
-    elif "youtube.com/watch" in feed.url or "youtu.be/" in feed.url:
+    elif is_youtube and path.startswith("/watch"):
         logger.warning(
             "Feed '%s': single YouTube video URL — use a channel or playlist feed URL instead",
             feed.name,
