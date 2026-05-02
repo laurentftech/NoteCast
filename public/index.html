@@ -660,6 +660,89 @@
     .episodes .episode:nth-child(5) { animation-delay: .10s; }
     .episodes .episode:nth-child(6) { animation-delay: .12s; }
     .episodes .episode:nth-child(n+7) { animation-delay: .14s; }
+
+    /* ── Feed groups ── */
+    .feed-group { margin-bottom: 24px; animation: fadeUp .3s ease both; }
+    .feed-group:nth-child(1) { animation-delay: .02s; }
+    .feed-group:nth-child(2) { animation-delay: .06s; }
+    .feed-group:nth-child(n+3) { animation-delay: .10s; }
+
+    .feed-group-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 0 6px;
+      margin-bottom: 10px;
+    }
+    .feed-group-title {
+      font-size: 13px;
+      font-weight: 650;
+      color: var(--text);
+      letter-spacing: -0.01em;
+      flex: 1; min-width: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .feed-group-count {
+      font-size: 11px;
+      color: var(--text-3);
+      font-weight: 500;
+    }
+    .feed-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* Feed badge on episode rows */
+    .ep-feed-badge {
+      display: inline-block;
+      font-size: 10.5px;
+      font-weight: 580;
+      padding: 1px 7px;
+      border-radius: 20px;
+      color: #fff;
+      opacity: .85;
+      white-space: nowrap;
+      flex-shrink: 0;
+      max-width: 100px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Published feeds list */
+    .feed-list { display: flex; flex-direction: column; gap: 8px; }
+    .feed-list-item {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      transition: border-color .12s;
+    }
+    .feed-list-item:hover { border-color: var(--border-strong); }
+    .feed-list-title {
+      font-size: 13px; font-weight: 600;
+      flex: 1; min-width: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .feed-list-count {
+      font-size: 11px; color: var(--text-3); font-weight: 500; flex-shrink: 0;
+    }
+
+    /* Queue status pill */
+    .queue-status {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 12px; font-weight: 550;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: var(--accent-softer);
+      border: 1px solid var(--accent-soft);
+      color: var(--accent);
+    }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+    .queue-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: currentColor;
+      animation: pulse 1.4s ease-in-out infinite;
+    }
   </style>
 </head>
 <body>
@@ -797,8 +880,8 @@
         <div class="stat-label">Episodes</div>
       </div>
       <div class="stat">
-        <div class="stat-value" id="statNextPoll">—</div>
-        <div class="stat-label">Next poll</div>
+        <div class="stat-value" id="statQueue" style="font-size:18px;font-weight:600;background:none;-webkit-background-clip:initial;color:var(--text-2)">—</div>
+        <div class="stat-label">In queue</div>
       </div>
       <div class="stat">
         <div class="stat-value" style="font-size:15px;font-weight:550;background:none;-webkit-background-clip:initial;color:var(--text)" id="statUpdated">—</div>
@@ -808,6 +891,10 @@
         <div class="stat-value" style="font-size:15px;font-weight:550;background:none;-webkit-background-clip:initial;color:var(--text)" id="statTokenExpiry">—</div>
         <div class="stat-label">Token expires</div>
       </div>
+    </div>
+
+    <div id="queueStatusRow" style="display:none;margin-bottom:14px;">
+      <span class="queue-status"><span class="queue-dot"></span><span id="queueStatusText"></span></span>
     </div>
 
     <button class="btn btn-accent" id="pollNowBtn" style="width:100%;justify-content:center;margin-bottom:18px;">
@@ -822,10 +909,9 @@
       <button class="btn" id="webhookTestBtn" style="padding:6px 12px;font-size:12px;">Test</button>
     </div>
 
-    <div class="section-label">RSS Feed</div>
-    <div class="rss-row">
-      <span class="rss-url" id="rssUrl">—</span>
-      <button class="btn" id="copyRss">Copy</button>
+    <div class="section-label">Published Feeds</div>
+    <div class="feed-list" id="feedList">
+      <div style="font-size:13px;color:var(--text-3);padding:8px 0">Loading…</div>
     </div>
 
     <div style="margin-top:22px">
@@ -1022,11 +1108,44 @@
   }
   tryLoadCover();
 
+  // ── Feed color palette ────────────────────────────
+  const FEED_COLORS = ['#7c4dff','#0ea5e9','#10b981','#f59e0b','#ef4444','#ec4899','#8b5cf6','#06b6d4'];
+  const _feedColorMap = {};
+  function feedColor(feedName) {
+    if (!_feedColorMap[feedName]) {
+      const idx = Object.keys(_feedColorMap).length % FEED_COLORS.length;
+      _feedColorMap[feedName] = FEED_COLORS[idx];
+    }
+    return _feedColorMap[feedName];
+  }
+
+  function episodeRow(ep, showFeedBadge = false) {
+    const badge = showFeedBadge
+      ? `<span class="ep-feed-badge" style="background:${feedColor(ep.feed_name || 'imported')}">${escapeHtml(ep.notebook || ep.feed_name || '')}</span>`
+      : '';
+    return `
+      <div class="episode" id="ep-${escapeHtml(ep.id)}" data-id="${escapeHtml(ep.id)}" data-url="${escapeHtml(ep.url)}">
+        <button class="play-btn" aria-label="Play ${escapeHtml(ep.title)}">
+          <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+        </button>
+        <div class="ep-info">
+          <div class="ep-title">${escapeHtml(ep.title)}</div>
+          <div class="ep-meta">${relTime(ep.created_at)}</div>
+        </div>
+        <div class="ep-aside">
+          <span class="eq" aria-hidden="true"><span></span><span></span><span></span></span>
+          ${badge}
+          ${ep.duration ? `<span class="ep-duration">${fmt(ep.duration)}</span>` : ''}
+        </div>
+      </div>`;
+  }
+
   // ── Episodes ─────────────────────────────────────
   let _lastEpisodesKey = null;
 
   async function loadEpisodes() {
-    const list = document.getElementById('episodes');
+    const container = document.getElementById('episodes');
     try {
       const res = await authFetch('/api/episodes');
       const fresh = await res.json();
@@ -1034,12 +1153,15 @@
       if (key === _lastEpisodesKey) return;
       _lastEpisodesKey = key;
       episodes = fresh;
-      const countText = episodes.length === 1 ? '1 episode' : `${episodes.length} episodes`;
-      document.getElementById('subtitle').textContent = countText;
-      document.getElementById('sectionCount').textContent = countText;
+
+      const feedCount = new Set(fresh.map(e => e.feed_name)).size;
+      const epText = episodes.length === 1 ? '1 episode' : `${episodes.length} episodes`;
+      const subtitle = feedCount > 1 ? `${epText} · ${feedCount} feeds` : epText;
+      document.getElementById('subtitle').textContent = subtitle;
+      document.getElementById('sectionCount').textContent = epText;
 
       if (!episodes.length) {
-        list.innerHTML = `
+        container.innerHTML = `
           <div class="empty">
             <div class="empty-illu">
               <svg viewBox="0 0 64 64" fill="none">
@@ -1053,29 +1175,44 @@
               </svg>
             </div>
             <h3>No episodes yet</h3>
-            <p>NoteCast is polling your notebooks. New episodes will show up here automatically.</p>
+            <p>NoteCast polls your RSS feeds and generates AI podcasts via NotebookLM. Episodes appear here once ready.</p>
           </div>`;
         return;
       }
 
-      list.innerHTML = episodes.map(ep => `
-        <div class="episode" id="ep-${escapeHtml(ep.id)}" data-id="${escapeHtml(ep.id)}" data-url="${escapeHtml(ep.url)}">
-          <button class="play-btn" aria-label="Play ${escapeHtml(ep.title)}">
-            <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-            <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
-          </button>
-          <div class="ep-info">
-            <div class="ep-title">${escapeHtml(ep.title)}</div>
-            <div class="ep-meta">${[escapeHtml(ep.notebook ?? ''), relTime(ep.created_at)].filter(Boolean).join(' · ')}</div>
-          </div>
-          <div class="ep-aside">
-            <span class="eq" aria-hidden="true"><span></span><span></span><span></span></span>
-            ${ep.duration ? `<span class="ep-duration">${fmt(ep.duration)}</span>` : ''}
-          </div>
-        </div>
-      `).join('');
+      // Group by feed_name (preserving order of first appearance)
+      const feedOrder = [];
+      const byFeed = {};
+      for (const ep of episodes) {
+        const fn = ep.feed_name || 'imported';
+        if (!byFeed[fn]) { byFeed[fn] = []; feedOrder.push(fn); }
+        byFeed[fn].push(ep);
+      }
 
-      list.querySelectorAll('.episode').forEach(el => {
+      if (feedOrder.length === 1) {
+        // Single feed — flat list, no group header, no badge needed
+        container.className = 'episodes';
+        container.innerHTML = episodes.map(ep => episodeRow(ep, false)).join('');
+      } else {
+        // Multiple feeds — grouped with headers, badge on each row
+        container.className = '';
+        container.innerHTML = feedOrder.map(fn => {
+          const eps = byFeed[fn];
+          const label = eps[0].notebook || fn;
+          const color = feedColor(fn);
+          return `
+            <div class="feed-group">
+              <div class="feed-group-header">
+                <span class="feed-dot" style="background:${color}"></span>
+                <span class="feed-group-title">${escapeHtml(label)}</span>
+                <span class="feed-group-count">${eps.length}</span>
+              </div>
+              <div class="episodes">${eps.map(ep => episodeRow(ep, false)).join('')}</div>
+            </div>`;
+        }).join('');
+      }
+
+      container.querySelectorAll('.episode').forEach(el => {
         el.addEventListener('click', () => playEpisode(
           el.dataset.id,
           el.dataset.url,
@@ -1083,7 +1220,7 @@
         ));
       });
     } catch {
-      list.innerHTML = '<div class="empty"><p>Could not load episodes.</p></div>';
+      container.innerHTML = '<div class="empty"><p>Could not load episodes.</p></div>';
     }
   }
 
@@ -1163,6 +1300,7 @@
     overlay.classList.add('open');
     document.body.style.overflow = 'hidden';
     loadStatus();
+    loadFeeds();
   }
   function closeAdmin() {
     overlay.classList.remove('open');
@@ -1188,26 +1326,43 @@
     btn.textContent = 'Checking…';
     btn.disabled = true;
     try {
-      await authFetch('/api/poll', { method: 'POST' });
-      btn.textContent = 'Triggered!';
-      setTimeout(() => { btn.textContent = 'Check now'; btn.disabled = false; }, 2000);
+      const r = await authFetch('/api/poll', { method: 'POST' });
+      const d = await r.json().catch(() => ({}));
+      const n = d.queued ?? 0;
+      btn.textContent = n > 0 ? `Queued ${n} new!` : 'Up to date';
+      if (n > 0) loadStatus();
     } catch {
       btn.textContent = 'Error';
-      setTimeout(() => { btn.textContent = 'Check now'; btn.disabled = false; }, 2000);
     }
+    setTimeout(() => { btn.textContent = 'Check now'; btn.disabled = false; }, 2500);
   });
 
   async function loadStatus() {
     try {
       const s = await authFetch('/api/status').then(r => r.json());
-      document.getElementById('statEpisodes').textContent = s.episodes;
-      document.getElementById('statNextPoll').textContent = fmtCountdown(s.next_poll_in);
+      document.getElementById('statEpisodes').textContent = s.episodes ?? '—';
+
+      const pending = s.pending ?? 0;
+      const generating = s.generating ?? 0;
+      const queueEl = document.getElementById('statQueue');
+      const queueRow = document.getElementById('queueStatusRow');
+      const queueText = document.getElementById('queueStatusText');
+      if (pending + generating === 0) {
+        queueEl.textContent = '—';
+        queueEl.style.color = 'var(--text-2)';
+        queueRow.style.display = 'none';
+      } else {
+        const parts = [];
+        if (generating > 0) parts.push(`${generating} generating`);
+        if (pending > 0) parts.push(`${pending} pending`);
+        queueEl.textContent = pending + generating;
+        queueEl.style.color = 'var(--accent)';
+        queueRow.style.display = 'block';
+        queueText.textContent = parts.join(' · ');
+      }
       document.getElementById('statUpdated').textContent = s.last_updated ? relTime(s.last_updated) : '—';
       if (s.version) document.getElementById('appVersion').textContent = `NoteCast ${s.version}`;
-      if (s.feed_url) {
-        feedUrl = s.feed_url;
-        document.getElementById('rssUrl').textContent = feedUrl;
-      }
+      if (s.feed_url) feedUrl = s.feed_url;
       const webhookRow = document.getElementById('webhookRow');
       webhookRow.style.display = s.webhook_enabled ? 'flex' : 'none';
       
@@ -1261,14 +1416,43 @@
     });
   });
 
-  document.getElementById('rssUrl').textContent = feedUrl;
-  document.getElementById('copyRss').addEventListener('click', () => {
-    navigator.clipboard.writeText(feedUrl).then(() => {
-      const btn = document.getElementById('copyRss');
+  function copyFeedUrl(btn, url) {
+    navigator.clipboard.writeText(url).then(() => {
+      const orig = btn.textContent;
       btn.textContent = 'Copied!';
-      setTimeout(() => btn.textContent = 'Copy', 1500);
+      setTimeout(() => { btn.textContent = orig; }, 1500);
     });
-  });
+  }
+
+  async function loadFeeds() {
+    const container = document.getElementById('feedList');
+    try {
+      const feeds = await authFetch('/api/feeds').then(r => r.json());
+      if (!feeds.length) {
+        container.innerHTML = '<div style="font-size:13px;color:var(--text-3);padding:8px 0">No feeds yet</div>';
+        document.getElementById('copyFeedWrap').style.display = 'none';
+        return;
+      }
+      container.innerHTML = feeds.map(f => `
+        <div class="feed-list-item">
+          <span class="feed-dot" style="background:${feedColor(f.name)}"></span>
+          <span class="feed-list-title">${escapeHtml(f.title)}</span>
+          <span class="feed-list-count">${f.episode_count} ep</span>
+          <button class="btn" style="padding:5px 10px;font-size:11px;flex-shrink:0"
+                  onclick="copyFeedUrl(this,${JSON.stringify(f.url)})">Copy URL</button>
+        </div>`).join('');
+
+      // Header RSS button: show only for single feed, use that URL
+      if (feeds.length === 1) {
+        feedUrl = feeds[0].url;
+        document.getElementById('copyFeedWrap').style.display = '';
+      } else {
+        document.getElementById('copyFeedWrap').style.display = 'none';
+      }
+    } catch {
+      container.innerHTML = '<div style="font-size:13px;color:var(--text-3);padding:8px 0">Could not load feeds</div>';
+    }
+  }
 
   const authFile = document.getElementById('authFile');
   authFile.addEventListener('change', () => {
@@ -1300,7 +1484,7 @@
     const fd = new FormData();
     fd.append('file', file);
     try {
-      const res = await authFetch('/auth/upload', { method: 'POST', body: fd });
+      const res = await authFetch('/api/auth/upload', { method: 'POST', body: fd });
       const json = await res.json();
       result.textContent = json.ok ? '✓ Credentials updated' : json.error;
       result.className = 'upload-result ' + (json.ok ? 'ok' : 'err');

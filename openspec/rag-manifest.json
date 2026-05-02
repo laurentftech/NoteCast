@@ -1,12 +1,28 @@
 {
-  "generatedAt": "2026-04-24T20:59:04.531Z",
+  "generatedAt": "2026-04-30T09:33:45.907Z",
   "specVersion": "1.0.0",
   "domains": [
     {
-      "domain": "artifact",
-      "specPath": "openspec/specs/artifact/spec.md",
+      "domain": "api",
+      "specPath": "openspec/specs/api/spec.md",
+      "sourceFiles": [],
+      "requirementCount": 3,
+      "dependsOn": [],
+      "calledBy": []
+    },
+    {
+      "domain": "auth",
+      "specPath": "openspec/specs/auth/spec.md",
       "sourceFiles": [],
       "requirementCount": 4,
+      "dependsOn": [],
+      "calledBy": []
+    },
+    {
+      "domain": "episode",
+      "specPath": "openspec/specs/episode/spec.md",
+      "sourceFiles": [],
+      "requirementCount": 1,
       "dependsOn": [],
       "calledBy": []
     },
@@ -14,7 +30,15 @@
       "domain": "feed",
       "specPath": "openspec/specs/feed/spec.md",
       "sourceFiles": [],
-      "requirementCount": 9,
+      "requirementCount": 22,
+      "dependsOn": [],
+      "calledBy": []
+    },
+    {
+      "domain": "user",
+      "specPath": "openspec/specs/user/spec.md",
+      "sourceFiles": [],
+      "requirementCount": 4,
       "dependsOn": [],
       "calledBy": []
     }

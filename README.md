@@ -38,6 +38,8 @@ curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/Caddyfile
 curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/.env.example
 mkdir -p auth data public/episodes
 curl -o public/index.html https://raw.githubusercontent.com/laurentftech/NoteCast/main/public/index.html
+mkdir -p config
+curl -o config/transformer.yaml https://raw.githubusercontent.com/laurentftech/NoteCast/main/bridge/transformer.yaml.example
 ```
 
 The bridge image (`ghcr.io/laurentftech/notecast:latest`) is pulled automatically.
@@ -61,7 +63,10 @@ Edit `.env`:
 ```env
 BASE_URL=https://podcast.yourdomain.com   # public URL of this server
 CADDY_DOMAIN=podcast.yourdomain.com       # same host, no protocol
+TRANSFORMER_CONFIG=/config/transformer.yaml
 ```
+
+`TRANSFORMER_CONFIG` points to the YAML file inside the container. The file itself stays outside the container at `./config/transformer.yaml`.
 
 ### 4. Authenticate with NotebookLM
 
@@ -81,7 +86,7 @@ Then push the credentials to the bridge:
 cp ~/.notebooklm/storage_state.json ./auth/
 
 # Or upload over the network (local or remote)
-curl -X POST http://your-server:8080/auth/upload \
+curl -X POST http://your-server:8080/api/auth/upload \
      -F "file=@$HOME/.notebooklm/storage_state.json"
 ```
 
@@ -164,7 +169,7 @@ The token is unguessable and stable (regenerated only if the token file is delet
 | `CADDY_DOMAIN` | yes | — | Domain for Caddy auto-HTTPS |
 | `POLL_INTERVAL` | no | `86400` | Seconds between automatic polls |
 | `RETENTION_DAYS` | no | `14` | Days before episodes are deleted |
-| `BRIDGE_API_KEY` | no | *(none)* | Protects `/auth/upload` and `/api/poll` — requests must include `X-Api-Key: <value>` |
+| `BRIDGE_API_KEY` | no | *(none)* | Protects `/api/auth/upload` and `/api/poll` — requests must include `X-Api-Key: <value>` |
 | `FEED_IMAGE_URL` | no | *(none)* | Cover art URL for the RSS feed (1400×1400px); auto-detected from `public/cover.jpg` if absent |
 | `BRIDGE_PORT` | no | `8080` | Internal HTTP port for the bridge |
 | `WEBHOOK_URL` | no | *(none)* | HTTP endpoint to POST when a new episode is downloaded (ntfy, Slack, Discord, …) |
@@ -212,7 +217,7 @@ Set `TOKEN_EXPIRY_WARN_DAYS` to adjust the warning window (default: `7`). Renew 
 | `GET` | `/api/episodes` | bearer / key | Episode list as JSON |
 | `POST` | `/api/poll` | bearer / key | Trigger an immediate poll |
 | `POST` | `/api/webhook/test` | bearer / key | Send a test webhook notification |
-| `POST` | `/auth/upload` | key | Upload a new `storage_state.json` |
+| `POST` | `/api/auth/upload` | bearer / key | Upload a new `storage_state.json` |
 | `GET` | `/health` | — | Health check |
 | `GET` | `/feed.xml` | — | RSS feed (single-user) |
 | `GET` | `/feed/{token}.xml` | — | RSS feed (multi-user, token in URL) |
