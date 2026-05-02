@@ -24,7 +24,7 @@ def _make_user(name="alice", feed_token="test-token", email="alice@example.com")
     )
 
 
-def _make_app() -> web.Application:
+def _make_app(google_client_id: str = "") -> web.Application:
     user = _make_user()
     user_service = AsyncMock()
     user_service.get_all = AsyncMock(return_value=[user])
@@ -45,7 +45,7 @@ def _make_app() -> web.Application:
         webhook_url="",
         webhook_headers={},
         webhook_link="",
-        google_client_id="",
+        google_client_id=google_client_id,
         poll_interval=86400,
         bridge_port=8080,
         bridge_api_key="",
@@ -60,8 +60,14 @@ def _make_app() -> web.Application:
 
 @pytest_asyncio.fixture
 async def client(aiohttp_client):
-    app = _make_app()
-    return await aiohttp_client(app)
+    """No-auth mode (no google_client_id)."""
+    return await aiohttp_client(_make_app())
+
+
+@pytest_asyncio.fixture
+async def auth_client(aiohttp_client):
+    """Auth-required mode (google_client_id set)."""
+    return await aiohttp_client(_make_app(google_client_id="test-client-id"))
 
 
 async def test_health_no_auth_required(client):
@@ -69,26 +75,26 @@ async def test_health_no_auth_required(client):
     assert resp.status == 200
 
 
-async def test_protected_route_no_token_returns_401(client):
-    resp = await client.post("/api/poll")
+async def test_protected_route_no_token_returns_401(auth_client):
+    resp = await auth_client.post("/api/poll")
     assert resp.status == 401
 
 
-async def test_protected_route_wrong_token_returns_401(client):
-    resp = await client.post("/api/poll", headers={"Authorization": "Bearer wrong"})
+async def test_protected_route_wrong_token_returns_401(auth_client):
+    resp = await auth_client.post("/api/poll", headers={"Authorization": "Bearer wrong"})
     assert resp.status == 401
 
 
-async def test_poll_with_valid_token_returns_queued_count(client):
-    resp = await client.post("/api/poll", headers={"Authorization": "Bearer test-token"})
+async def test_poll_with_valid_token_returns_queued_count(auth_client):
+    resp = await auth_client.post("/api/poll", headers={"Authorization": "Bearer test-token"})
     assert resp.status == 200
     data = await resp.json()
     assert "queued" in data
     assert data["queued"] == 3
 
 
-async def test_auth_endpoint_returns_user_info(client):
-    resp = await client.post("/api/auth", headers={"Authorization": "Bearer test-token"})
+async def test_auth_endpoint_returns_user_info(auth_client):
+    resp = await auth_client.post("/api/auth", headers={"Authorization": "Bearer test-token"})
     assert resp.status == 200
     data = await resp.json()
     assert data["authenticated"] is True

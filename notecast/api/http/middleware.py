@@ -26,6 +26,17 @@ async def auth_middleware(
     if request.path in _PUBLIC_API_ROUTES:
         return await handler(request)
 
+    user_service: "UserService" = request.app["user_service"]
+    settings = request.app["settings"]
+
+    # No Google auth configured → single-user mode, use first user
+    if not settings.google_client_id:
+        users = await user_service.get_all()
+        if users:
+            request["user"] = users[0]
+            return await handler(request)
+        return web.json_response({"error": "No users configured"}, status=503)
+
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
         return web.json_response(
@@ -33,9 +44,6 @@ async def auth_middleware(
         )
 
     token = auth_header[7:]
-    user_service: "UserService" = request.app["user_service"]
-    settings = request.app["settings"]
-
     user = await _validate_token(token, user_service, settings.google_client_id)
     if not user:
         return web.json_response({"error": "Invalid token"}, status=401)
