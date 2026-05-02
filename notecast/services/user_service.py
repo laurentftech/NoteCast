@@ -90,7 +90,7 @@ class UserService:
                 auth_file=_DEFAULT_AUTH_FILE,
                 db_file=self._settings.data_base / 'jobs.db',
                 history_file=self._settings.data_base / 'history.json',
-                episodes_dir=self._settings.public_dir / 'episodes',
+                episodes_dir=self._settings.public_dir / 'episodes' / 'default',
                 feed_dir=self._settings.public_dir / 'feed',
                 feed_token=token,
                 webhook_url=self._settings.webhook_url,
