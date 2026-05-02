@@ -15,6 +15,8 @@ def load_user_config(user) -> list[Feed]:
             style: deep-dive
     """
     path = global_settings.config_dir / user.name / "transformer.yaml"
+    if not path.exists():
+        path = global_settings.config_dir / "transformer.yaml"
     try:
         raw = yaml.safe_load(path.read_text()) or {}
     except FileNotFoundError:
