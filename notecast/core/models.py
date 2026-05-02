@@ -42,6 +42,8 @@ class Job(BaseModel):
     title: str
     status: Literal["pending", "processing", "generating", "done", "failed"]
     style: str = "deep-dive"
+    instructions: str = ""
+    language: str = "en"
     notebook_id: str | None = None
     artifact_id: str | None = None
     duration: int | None = None
@@ -59,6 +61,7 @@ class Feed(BaseModel):
     url: str
     style: str = "deep-dive"
     instructions: str = ""
+    language: str = "en"
     max_episodes: int = 1  # max new episodes to queue per poll
 
 
@@ -71,6 +74,8 @@ class Episode(BaseModel):
     feed_name: str
     feed_title: str
     style: str
+    instructions: str = ""
+    language: str = "en"
 
 
 class Artifact(BaseModel):

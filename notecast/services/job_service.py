@@ -65,7 +65,12 @@ class JobService:
                     logger.info("Job %s: adding URL source", job.id)
                     await client.add_source(nb.id, url=source)
 
-                await client.generate_audio(nb.id, style=job.style)
+                await client.generate_audio(
+                    nb.id,
+                    style=job.style,
+                    instructions=job.instructions,
+                    language=job.language,
+                )
                 repo.update_job(user, job.id, status="generating")
                 # Harvester worker polls and completes download
 

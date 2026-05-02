@@ -31,6 +31,8 @@ class SQLiteJobRepository(JobRepository):
                     title TEXT NOT NULL,
                     status TEXT NOT NULL,
                     style TEXT,
+                    instructions TEXT NOT NULL DEFAULT '',
+                    language TEXT NOT NULL DEFAULT 'en',
                     notebook_id TEXT,
                     artifact_id TEXT,
                     duration INTEGER,
@@ -43,6 +45,8 @@ class SQLiteJobRepository(JobRepository):
             for col, definition in [
                 ("error_message", "TEXT"),
                 ("source_url", "TEXT NOT NULL DEFAULT ''"),
+                ("instructions", "TEXT NOT NULL DEFAULT ''"),
+                ("language", "TEXT NOT NULL DEFAULT 'en'"),
             ]:
                 try:
                     conn.execute(f"ALTER TABLE jobs ADD COLUMN {col} {definition}")
@@ -65,16 +69,23 @@ class SQLiteJobRepository(JobRepository):
             title=episode.title,
             status="pending",
             style=episode.style,
+            instructions=episode.instructions,
+            language=episode.language,
             created_at=now,
             updated_at=now,
         )
         with self._conn() as conn:
             conn.execute("""
-                INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO jobs (id, user_name, feed_name, feed_title, episode_url,
+                    source_url, title, status, style, instructions, language,
+                    notebook_id, artifact_id, duration, retries, error_message,
+                    created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 new_job.id, new_job.user_name, new_job.feed_name, new_job.feed_title,
                 new_job.episode_url, new_job.source_url, new_job.title, new_job.status,
-                new_job.style, new_job.notebook_id, new_job.artifact_id, new_job.duration,
+                new_job.style, new_job.instructions, new_job.language,
+                new_job.notebook_id, new_job.artifact_id, new_job.duration,
                 new_job.retries, None,
                 new_job.created_at.isoformat(), new_job.updated_at.isoformat()
             ))

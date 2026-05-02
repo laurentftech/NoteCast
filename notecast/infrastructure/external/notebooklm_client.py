@@ -69,12 +69,34 @@ class NotebookLMClientWrapper:
         except Exception as exc:
             raise NotebookLMError(f"Failed to add file source: {exc}") from exc
 
-    async def generate_audio(self, notebook_id: str, style: str = "deep-dive") -> None:
+    async def generate_audio(
+        self,
+        notebook_id: str,
+        style: str = "deep-dive",
+        instructions: str = "",
+        language: str = "en",
+    ) -> None:
         """Kick off audio generation; task_id stored for wait_for_audio."""
+        from notebooklm.rpc.types import AudioFormat
+        _STYLE_MAP = {
+            "deep-dive": AudioFormat.DEEP_DIVE,
+            "brief":     AudioFormat.BRIEF,
+            "critique":  AudioFormat.CRITIQUE,
+            "debate":    AudioFormat.DEBATE,
+        }
+        audio_format = _STYLE_MAP.get(style, AudioFormat.DEEP_DIVE)
         try:
-            status = await self._client.artifacts.generate_audio(notebook_id)
+            status = await self._client.artifacts.generate_audio(
+                notebook_id,
+                audio_format=audio_format,
+                instructions=instructions or None,
+                language=language,
+            )
             self._pending_tasks[notebook_id] = status.task_id
-            logger.info("Audio generation started: notebook=%s task=%s", notebook_id, status.task_id)
+            logger.info(
+                "Audio generation started: notebook=%s task=%s style=%s lang=%s",
+                notebook_id, status.task_id, style, language,
+            )
         except Exception as exc:
             raise NotebookLMError(f"Failed to start audio generation: {exc}") from exc
 

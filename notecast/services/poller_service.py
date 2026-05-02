@@ -73,6 +73,8 @@ class PollerService:
                             feed_name=feed.name,
                             feed_title=feed_title,
                             style=style,
+                            instructions=feed.instructions,
+                            language=feed.language,
                         ))
                         logger.info(f"[{user.name}:{feed.name}] Queued: {episode.title[:70]}")
                         new_jobs += 1

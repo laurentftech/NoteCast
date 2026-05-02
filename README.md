@@ -77,24 +77,34 @@ Edit `config/transformer.yaml`:
 
 ```yaml
 feeds:
-  # Regular RSS/Atom feed (podcast, newsletter, blog)
+  # RSS/Atom feed (podcast, newsletter, blog)
   - name: my-podcast
     url: "https://example.com/feed/podcast.rss"
-    style: deep-dive
+    style: deep-dive        # deep-dive | brief | critique | debate
+    language: en            # language code passed to NotebookLM (e.g. fr, de, es, ja)
     max_episodes: 1
+    # instructions: "Present the episode as a lively French podcast for tech enthusiasts."
 
   # YouTube channel — NotebookLM handles YouTube URLs natively
   - name: my-yt-channel
     url: "https://www.youtube.com/feeds/videos.xml?channel_id=CHANNEL_ID"
     style: deep-dive
+    language: en
     max_episodes: 1
 ```
 
 Each `name` becomes a separate RSS feed (e.g. `/feed/default/my-podcast.xml?token=…`).
 
-`style` options: `brief` · `deep-dive` · `critique` · `debate`
+| Field | Default | Description |
+|---|---|---|
+| `name` | — | Feed identifier, used in the RSS URL path |
+| `url` | — | RSS/Atom/YouTube feed URL |
+| `style` | `deep-dive` | Audio overview style: `deep-dive` · `brief` · `critique` · `debate` |
+| `language` | `en` | Language code for the generated podcast (`fr`, `de`, `es`, `ja`, …) |
+| `instructions` | *(none)* | Custom prompt passed to NotebookLM hosts (e.g. "Speak in French and focus on practical takeaways") |
+| `max_episodes` | `1` | Max new episodes to queue per poll |
 
-> **YouTube vs regular feeds:** YouTube channel URLs are passed directly to NotebookLM (native support). For all other feeds (podcasts, blogs), NoteCast downloads the audio and transcribes it locally with Whisper before submitting to NotebookLM. Whisper model size is controlled by `WHISPER_MODEL` (default: `base`). Larger models (`small`, `medium`, `large-v3`) are more accurate but slower and use more RAM.
+> **YouTube vs regular feeds:** YouTube URLs are passed directly to NotebookLM (native support). For all other feeds, NoteCast downloads the audio and transcribes it locally with [faster-whisper](https://github.com/SYSTRAN/faster-whisper) before submitting to NotebookLM. Whisper model size is controlled by `WHISPER_MODEL` (default: `base`). Larger models (`small`, `medium`, `large-v3`) are more accurate but slower and use more RAM.
 
 ### 5. Authenticate with NotebookLM
 
