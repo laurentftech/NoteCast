@@ -49,6 +49,10 @@ class PollerService:
         nb_cfg = config.get('notebooklm', {})
         default_style = nb_cfg.get('default_style', 'deep-dive')
 
+        if not feeds:
+            logger.warning("[%s] No feeds configured — create config/transformer.yaml", user.name)
+            return 0
+
         # Poll each feed
         for feed in feeds:
             try:
