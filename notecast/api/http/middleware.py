@@ -13,13 +13,17 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_PUBLIC_ROUTES = {"/api/health", "/api/config"}
+_PUBLIC_API_ROUTES = {"/api/health", "/api/config"}
 
 
 async def auth_middleware(
     request: Request, handler: Handler
 ) -> StreamResponse:
-    if request.path in _PUBLIC_ROUTES:
+    # Static files and non-API routes pass through without auth
+    if not request.path.startswith("/api/"):
+        return await handler(request)
+
+    if request.path in _PUBLIC_API_ROUTES:
         return await handler(request)
 
     auth_header = request.headers.get("Authorization", "")
