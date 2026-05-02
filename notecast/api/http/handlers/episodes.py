@@ -25,6 +25,7 @@ async def handle_episodes(request: web.Request) -> web.Response:
             "id": job.id,
             "title": job.title,
             "url": audio_url,
+            "feed_name": job.feed_name,
             "notebook": job.feed_title or job.feed_name,
             "created_at": job.created_at.isoformat(),
             "duration": job.duration,

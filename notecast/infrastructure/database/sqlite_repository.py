@@ -131,6 +131,17 @@ class SQLiteJobRepository(JobRepository):
             ).fetchone()
         return row is not None
 
+    def get_queue_counts(self, user: User) -> dict:
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT status, COUNT(*) FROM jobs WHERE user_name=? AND status IN ('pending','generating') GROUP BY status",
+                (user.name,)
+            ).fetchall()
+        counts = {"pending": 0, "generating": 0}
+        for status, n in rows:
+            counts[status] = n
+        return counts
+
     def get_known_notebook_ids(self, user: User) -> set[str]:
         with self._conn() as conn:
             rows = conn.execute(

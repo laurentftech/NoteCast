@@ -16,6 +16,7 @@ async def handle_status(request: web.Request) -> web.Response:
     repo = repo_factory(user)
     done_jobs = repo.get_all_done_jobs(user)
     last_updated = done_jobs[0].created_at.isoformat() if done_jobs else None
+    queue = repo.get_queue_counts(user)
 
     feed_url = (
         f"{settings.base_url}/feed/{user.feed_token}.xml"
@@ -25,6 +26,8 @@ async def handle_status(request: web.Request) -> web.Response:
 
     payload = {
         "episodes": len(done_jobs),
+        "pending": queue["pending"],
+        "generating": queue["generating"],
         "next_poll_in": None,
         "last_updated": last_updated,
         "feed_url": feed_url,
