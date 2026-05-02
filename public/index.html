@@ -1438,9 +1438,13 @@
           <span class="feed-dot" style="background:${feedColor(f.name)}"></span>
           <span class="feed-list-title">${escapeHtml(f.title)}</span>
           <span class="feed-list-count">${f.episode_count} ep</span>
-          <button class="btn" style="padding:5px 10px;font-size:11px;flex-shrink:0"
-                  onclick="copyFeedUrl(this,${JSON.stringify(f.url)})">Copy URL</button>
+          <button class="btn feed-copy-btn" style="padding:5px 10px;font-size:11px;flex-shrink:0"
+                  data-url="${escapeHtml(f.url)}">Copy URL</button>
         </div>`).join('');
+
+      container.querySelectorAll('.feed-copy-btn').forEach(btn => {
+        btn.addEventListener('click', () => copyFeedUrl(btn, btn.dataset.url));
+      });
 
       // Header RSS button: show only for single feed, use that URL
       if (feeds.length === 1) {
