@@ -31,6 +31,10 @@ def _make_app(google_client_id: str = "", users: str = "alice") -> web.Applicati
     user_service.get_by_name = AsyncMock(return_value=user)
     user_service.get_by_email = MagicMock(return_value=user)
 
+    repo = MagicMock()
+    repo.get_all_done_jobs = MagicMock(return_value=[])
+    repo_factory = MagicMock(return_value=repo)
+
     job_service = MagicMock()
     feed_service = AsyncMock()
     poller_service = AsyncMock()
@@ -55,7 +59,7 @@ def _make_app(google_client_id: str = "", users: str = "alice") -> web.Applicati
         generation_timeout=2700,
         max_retries=1,
     )
-    return create_app(settings, job_service, feed_service, poller_service, user_service, storage)
+    return create_app(settings, job_service, feed_service, poller_service, user_service, storage, repo_factory=repo_factory)
 
 
 @pytest_asyncio.fixture

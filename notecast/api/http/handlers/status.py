@@ -1,36 +1,52 @@
 """Status handler."""
+import json
+import math
+import time
 from aiohttp import web
-
-from notecast.services.job_service import JobService
-from notecast.services.user_service import UserService
 
 
 async def handle_status(request: web.Request) -> web.Response:
-    """Status endpoint.
-    
-    Returns:
-        JSON response with system status
-    """
-    job_service: JobService = request.app["job_service"]
-    user_service: UserService = request.app["user_service"]
+    user = request.get("user")
+    if not user:
+        return web.json_response({"error": "Unauthorized"}, status=401)
 
-    users = await user_service.get_all()
+    repo_factory = request.app["repo_factory"]
+    settings = request.app["settings"]
 
-    status = {
-        "users": len(users),
-        "user_status": [],
+    repo = repo_factory(user)
+    done_jobs = repo.get_all_done_jobs(user)
+    last_updated = done_jobs[0].created_at.isoformat() if done_jobs else None
+
+    feed_url = (
+        f"{settings.base_url}/feed/{user.feed_token}.xml"
+        if settings.users
+        else f"{settings.base_url}/feed.xml"
+    )
+
+    payload = {
+        "episodes": len(done_jobs),
+        "next_poll_in": None,
+        "last_updated": last_updated,
+        "feed_url": feed_url,
+        "webhook_enabled": bool(settings.webhook_url),
+        "version": None,
     }
 
-    for user in users:
-        pending_jobs = await job_service.get_next_pending(user)
-        has_pending = pending_jobs is not None
+    expires = _auth_expires_in_days(user)
+    if expires is not None:
+        payload["token_expires_in_days"] = expires
 
-        status["user_status"].append(
-            {
-                "name": user.name,
-                "has_pending_jobs": has_pending,
-                "feed_token_configured": bool(user.feed_token),
-            }
-        )
+    return web.json_response(payload)
 
-    return web.json_response(status)
+
+def _auth_expires_in_days(user) -> "int | None":
+    if not user.auth_file.exists():
+        return None
+    try:
+        data = json.loads(user.auth_file.read_bytes())
+        expiries = [c["expires"] for c in data.get("cookies", []) if c.get("expires", -1) > 0]
+        if not expiries:
+            return None
+        return math.floor((min(expiries) - time.time()) / 86400)
+    except Exception:
+        return None
