@@ -14,6 +14,8 @@ services:
       - ./config:/config:ro
     environment:
       - TRANSFORMER_CONFIG
+      - PUBLIC_DIR=/public
+      - DATA_BASE=/data
 
   caddy:
     image: caddy:2-alpine
