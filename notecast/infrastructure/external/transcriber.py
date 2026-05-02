@@ -1,4 +1,5 @@
 """Audio transcription via faster-whisper."""
+import asyncio
 import logging
 import tempfile
 from pathlib import Path
@@ -41,9 +42,12 @@ async def transcribe_url(audio_url: str, model_size: str = "base") -> Path:
 
     logger.info("Transcribing %s (%.1f MB)", audio_path.name, len(resp.content) / 1e6)
     try:
-        model = _get_model(model_size)
-        segments, info = model.transcribe(str(audio_path), beam_size=5)
-        text = " ".join(seg.text.strip() for seg in segments)
+        def _run() -> tuple:
+            model = _get_model(model_size)
+            segments, info = model.transcribe(str(audio_path), beam_size=5)
+            return " ".join(seg.text.strip() for seg in segments), info
+
+        text, info = await asyncio.to_thread(_run)
         logger.info(
             "Transcription done: %.0fs audio, %d chars",
             info.duration, len(text),
