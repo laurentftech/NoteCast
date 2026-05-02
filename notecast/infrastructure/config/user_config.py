@@ -24,4 +24,21 @@ def load_user_config(user) -> list[Feed]:
         return []
     feeds = [Feed(**f) for f in raw.get("feeds", [])]
     logger.info("[%s] Loaded %d feed(s) from %s", user.name, len(feeds), path)
+    for feed in feeds:
+        _warn_bad_url(feed)
     return feeds
+
+
+def _warn_bad_url(feed: Feed) -> None:
+    if "youtube.com/playlist?list=" in feed.url:
+        playlist_id = feed.url.split("list=")[-1].split("&")[0]
+        logger.warning(
+            "Feed '%s': YouTube playlist URL is not RSS — use: "
+            "https://www.youtube.com/feeds/videos.xml?playlist_id=%s",
+            feed.name, playlist_id,
+        )
+    elif "youtube.com/watch" in feed.url or "youtu.be/" in feed.url:
+        logger.warning(
+            "Feed '%s': single YouTube video URL — use a channel or playlist feed URL instead",
+            feed.name,
+        )
