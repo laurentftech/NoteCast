@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     bridge_api_key: str = ""
     data_base: Path = Path("/data")
     config_dir: Path = Path("/config")  # per-user transformer.yaml lives here
-    public_dir: Path = Path("./public")
+    public_dir: Path = Path("/public")
     webhook_url: str = ""
     webhook_headers: Dict = {}
     webhook_link: str = ""

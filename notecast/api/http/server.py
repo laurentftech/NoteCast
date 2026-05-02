@@ -79,7 +79,7 @@ def create_app(
     # Static files (index.html + audio episodes)
     static_path = Path(settings.public_dir)
     if static_path.exists():
-        app.router.add_static("/", static_path, name="static")
+        app.router.add_static("/", static_path, name="static", show_index=True, follow_symlinks=True)
 
     logger.info("HTTP server application created")
     return app
