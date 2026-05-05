@@ -64,30 +64,21 @@ class TransformerWorker:
                 logger.error("Error processing jobs for user %s: %s", user.name, e)
 
     async def _process_user_jobs(self, user: User) -> None:
-        """Process pending jobs for a single user.
-        
-        Args:
-            user: User to process jobs for
-        """
-        while True:
-            job = await self._job_service.get_next_pending(user)
-            if not job:
-                break
+        """Process one pending job per cycle to avoid hitting NotebookLM concurrent limits."""
+        job = await self._job_service.get_next_pending(user)
+        if not job:
+            return
 
-            try:
-                logger.info(
-                    f"Processing job {job.id} for user {user.name}, "
-                    f"feed {job.feed_name}"
-                )
-
-                # Load user config for this job
-                config = {
-                    "storage": self._job_service._storage,
-                    "job_service": self._job_service,
-                }
-
-                await self._job_service.process_job(user, job, config)
-                logger.info("Generation started for job %s (feed=%s)", job.id, job.feed_name)
-
-            except Exception as e:
-                logger.error("Failed job %s: %s", job.id, e)
+        try:
+            logger.info(
+                "Processing job %s for user %s, feed %s",
+                job.id, user.name, job.feed_name,
+            )
+            config = {
+                "storage": self._job_service._storage,
+                "job_service": self._job_service,
+            }
+            await self._job_service.process_job(user, job, config)
+            logger.info("Generation started for job %s (feed=%s)", job.id, job.feed_name)
+        except Exception as e:
+            logger.error("Failed job %s: %s", job.id, e)
