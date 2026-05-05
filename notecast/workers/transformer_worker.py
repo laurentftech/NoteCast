@@ -64,7 +64,11 @@ class TransformerWorker:
                 logger.error("Error processing jobs for user %s: %s", user.name, e)
 
     async def _process_user_jobs(self, user: User) -> None:
-        """Process one pending job per cycle to avoid hitting NotebookLM concurrent limits."""
+        """Submit one pending job only when no generation is already in flight."""
+        repo = self._job_service._repo_factory(user)
+        if repo.get_generating_jobs(user):
+            return  # wait for in-flight generation to complete before submitting next
+
         job = await self._job_service.get_next_pending(user)
         if not job:
             return
