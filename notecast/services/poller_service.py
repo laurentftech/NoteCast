@@ -65,8 +65,12 @@ class PollerService:
                 feed_title = feed.title or feed_title or feed.name
                 style = feed.style or default_style
                 
-                # Create jobs for new episodes, most recent first, up to max_episodes
-                queued_this_feed = 0
+                # Create jobs for new episodes, up to max_episodes active at once
+                active = repo.count_active_jobs(user, feed.name)
+                if active >= feed.max_episodes:
+                    logger.debug("[%s:%s] %d active job(s), max=%d — skipping", user.name, feed.name, active, feed.max_episodes)
+                    continue
+                queued_this_feed = active
                 for episode in episodes:
                     if queued_this_feed >= feed.max_episodes:
                         break

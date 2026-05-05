@@ -153,6 +153,14 @@ class SQLiteJobRepository(JobRepository):
             counts[status] = n
         return counts
 
+    def count_active_jobs(self, user: User, feed_name: str) -> int:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) FROM jobs WHERE user_name=? AND feed_name=? AND status NOT IN ('done','failed')",
+                (user.name, feed_name)
+            ).fetchone()
+        return row[0]
+
     def get_known_notebook_ids(self, user: User) -> set[str]:
         with self._conn() as conn:
             rows = conn.execute(
