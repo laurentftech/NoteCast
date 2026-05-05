@@ -92,6 +92,11 @@ class NotebookLMClientWrapper:
                 instructions=instructions or None,
                 language=language,
             )
+            if not status.task_id:
+                raise NotebookLMError(
+                    f"Audio generation returned empty task_id for notebook {notebook_id} "
+                    "(quota likely exceeded)"
+                )
             self._pending_tasks[notebook_id] = status.task_id
             logger.info(
                 "Audio generation started: notebook=%s task=%s style=%s lang=%s",
