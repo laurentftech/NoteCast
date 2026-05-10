@@ -108,7 +108,33 @@ Each `name` becomes a separate RSS feed (e.g. `/feed/default/my-podcast.xml?toke
 
 ### 5. Authenticate with NotebookLM
 
-Login requires a real browser. Run it on any machine with a display — your Mac, a laptop, etc.
+Run on any machine where you're signed into Google — your Mac, a laptop, etc.
+
+**Option A — browser cookie import (recommended, no Playwright needed)**
+
+Requires notebooklm-py ≥ 0.4.0 and [rookiepy](https://github.com/thewh1teagle/rookie):
+
+```bash
+pip install "notebooklm-py[cookies]"
+notebooklm login --browser-cookies chrome   # or firefox, safari, edge, brave
+```
+
+Then use the helper script to upload in one step:
+
+```bash
+curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/scripts/refresh-auth.sh
+chmod +x refresh-auth.sh
+
+# Single-user
+./refresh-auth.sh --url https://podcast.yourdomain.com
+
+# Multi-user (token shown in Admin panel → NotebookLM Session → Script token)
+./refresh-auth.sh --url https://podcast.yourdomain.com --token <your-feed-token>
+```
+
+> **Note:** Safari cookie extraction has a known bug in some rookiepy versions — use `--browser chrome` or `--browser firefox` if it fails.
+
+**Option B — Playwright login (fallback)**
 
 ```bash
 pip install notebooklm-py playwright
@@ -121,16 +147,14 @@ Then push the credentials to the container:
 
 ```bash
 # Single-user: copy directly
-cp ~/.notebooklm/storage_state.json ./auth/
+cp ~/.notebooklm/profiles/default/storage_state.json ./auth/
 
 # Or upload over the network
 curl -X POST http://your-server:8080/api/auth/upload \
-     -F "file=@$HOME/.notebooklm/storage_state.json"
+     -F "file=@$HOME/.notebooklm/profiles/default/storage_state.json"
 ```
 
-Alternatively, use **Admin panel → Upload credentials** in the web UI after the container is running. Credentials take effect immediately — no restart needed.
-
-> **Tip:** set `BRIDGE_API_KEY` in `.env` to protect the upload endpoint. Add `-H "X-Api-Key: yourkey"` to the curl command.
+Alternatively, use **Admin panel → Upload credentials** in the web UI. Credentials take effect immediately — no restart needed.
 
 ### 6. Start
 
@@ -250,7 +274,7 @@ Content-Type: text/plain
 NotebookLM token expires in 3 day(s)
 ```
 
-Renew by running `notebooklm login` again and re-uploading `storage_state.json` (via the web UI or curl).
+Renew credentials using the `refresh-auth.sh` script (see step 5), the **Admin panel → Upload credentials** drag-and-drop, or `notebooklm login` + manual upload.
 
 ---
 
@@ -266,6 +290,7 @@ Renew by running `notebooklm login` again and re-uploading `storage_state.json` 
 | `POST` | `/api/poll` | bearer / key | Trigger an immediate poll |
 | `POST` | `/api/webhook/test` | bearer / key | Send a test webhook notification |
 | `POST` | `/api/auth/upload` | bearer / key | Upload a new `storage_state.json` |
+| `POST` | `/api/auth/browser-cookies` | bearer / key | Import credentials directly from an installed browser (requires `notebooklm-py[cookies]` on the server) |
 | `GET` | `/feed/{user}/{name}.xml` | token in query | RSS feed (e.g. `?token=abc123`) |
 
 *bearer = `Authorization: Bearer <google-id-token>` (multi-user mode)*
