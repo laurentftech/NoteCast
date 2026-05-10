@@ -40,7 +40,7 @@ class Job(BaseModel):
     episode_url: str       # MP3/enclosure URL — used for deduplication
     source_url: str = ""   # article page URL — used as NotebookLM source
     title: str
-    status: Literal["pending", "processing", "generating", "done", "failed"]
+    status: Literal["pending", "processing", "generating", "done", "failed", "deleted"]
     style: str = "deep-dive"
     instructions: str = ""
     language: str = "en"
