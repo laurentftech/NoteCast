@@ -134,6 +134,15 @@ class SQLiteJobRepository(JobRepository):
             ).fetchall()
         return [Job(**dict(row)) for row in rows]
 
+    def get_active_jobs(self, user: User) -> List[Job]:
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM jobs WHERE user_name=? AND status IN ('pending','generating') "
+                "ORDER BY created_at ASC",
+                (user.name,)
+            ).fetchall()
+        return [Job(**dict(row)) for row in rows]
+
     def episode_seen(self, user: User, episode_url: str) -> bool:
         with self._conn() as conn:
             row = conn.execute(

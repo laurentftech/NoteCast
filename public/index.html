@@ -654,6 +654,16 @@
       color: var(--text-3);
       margin-bottom: 10px;
     }
+    .accordion-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; user-select: none;
+      padding: 4px 0; margin-bottom: 0;
+    }
+    .accordion-hdr:hover { opacity: .8; }
+    .accordion-hdr .section-label { margin-bottom: 0; }
+    .accordion-chev { font-size: 13px; color: var(--text-3); transition: transform .2s; }
+    .accordion-chev.open { transform: rotate(180deg); }
+    .accordion-body { margin-top: 10px; }
 
     .upload-area {
       border: 1.5px dashed var(--border-strong);
@@ -815,6 +825,28 @@
       background: currentColor;
       animation: pulse 1.4s ease-in-out infinite;
     }
+    .queue-status { cursor: pointer; user-select: none; }
+    .queue-chevron { transition: transform .2s; font-style: normal; margin-left: 2px; }
+    .queue-chevron.open { transform: rotate(180deg); }
+    #queueJobList {
+      display: none; margin-top: 8px;
+      border: 1px solid var(--border); border-radius: 10px;
+      overflow: hidden;
+    }
+    .queue-job-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 12px; font-size: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .queue-job-row:last-child { border-bottom: none; }
+    .queue-job-badge {
+      font-size: 10px; font-weight: 600; padding: 2px 6px;
+      border-radius: 6px; white-space: nowrap; flex-shrink: 0;
+    }
+    .queue-job-badge.generating { background: var(--accent-softer); color: var(--accent); }
+    .queue-job-badge.pending { background: var(--surface-2); color: var(--text-2); }
+    .queue-job-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+    .queue-job-meta { font-size: 11px; color: var(--text-2); white-space: nowrap; flex-shrink: 0; }
   </style>
 </head>
 <body>
@@ -973,7 +1005,12 @@
     </div>
 
     <div id="queueStatusRow" style="display:none;margin-bottom:14px;">
-      <span class="queue-status"><span class="queue-dot"></span><span id="queueStatusText"></span></span>
+      <span class="queue-status" id="queueStatusToggle" title="Show queue details">
+        <span class="queue-dot"></span>
+        <span id="queueStatusText"></span>
+        <i class="queue-chevron" id="queueChevron">▾</i>
+      </span>
+      <div id="queueJobList"></div>
     </div>
 
     <button class="btn btn-accent" id="pollNowBtn" style="width:100%;justify-content:center;margin-bottom:18px;">
@@ -988,50 +1025,65 @@
       <button class="btn" id="webhookTestBtn" style="padding:6px 12px;font-size:12px;">Test</button>
     </div>
 
-    <div class="section-label">Published Feeds</div>
-    <div class="feed-list" id="feedList">
-      <div style="font-size:13px;color:var(--text-3);padding:8px 0">Loading…</div>
+    <div class="accordion-hdr" id="feedsAccordion">
+      <div class="section-label">Published Feeds</div>
+      <span class="accordion-chev" id="feedsChev">▾</span>
+    </div>
+    <div class="accordion-body" id="feedsBody" style="display:none;">
+      <div class="feed-list" id="feedList">
+        <div style="font-size:13px;color:var(--text-3);padding:8px 0">Loading…</div>
+      </div>
     </div>
 
     <div style="margin-top:22px">
-      <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
-        NotebookLM Session
-        <span id="sessionBadge" style="font-size:11px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--text-3)">—</span>
+      <div class="accordion-hdr" id="sessionAccordion">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="section-label">NotebookLM Session</div>
+          <span id="sessionBadge" style="font-size:11px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--text-3)">—</span>
+        </div>
+        <span class="accordion-chev" id="sessionChev">▾</span>
       </div>
-      <div id="scriptTokenRow" style="display:none;align-items:center;gap:8px;margin-bottom:14px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;">
-        <span style="font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.06em;flex-shrink:0;">Script token</span>
-        <code id="scriptTokenValue" style="flex:1;font-size:11.5px;font-family:'SF Mono',Menlo,Consolas,monospace;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></code>
-        <button class="btn" id="copyTokenBtn" style="padding:4px 10px;font-size:11px;flex-shrink:0;">Copy</button>
+      <div class="accordion-body" id="sessionBody" style="display:none;">
+        <div id="scriptTokenRow" style="display:none;align-items:center;gap:8px;margin-bottom:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;">
+          <span style="font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.06em;flex:1;">Script token</span>
+          <code id="scriptTokenValue" style="display:none;"></code>
+          <button class="btn" id="copyTokenBtn" style="padding:4px 10px;font-size:11px;flex-shrink:0;">Copy token</button>
+        </div>
+        <button class="btn" id="renewCredsToggle" style="width:100%;justify-content:center;padding:10px;font-size:13px;">
+          Renew credentials
+        </button>
+        <div id="renewCredsBody" style="display:none;margin-top:12px;">
+          <div class="upload-area" id="uploadArea">
+            <p>Drop or choose <code>storage_state.json</code> to renew credentials</p>
+            <label class="btn" style="cursor:pointer">
+              Choose file
+              <input type="file" id="authFile" accept=".json,application/json">
+            </label>
+            <div class="upload-filename" id="authFilename"></div>
+            <div class="upload-result" id="uploadResult"></div>
+          </div>
+          <button class="btn btn-accent" id="uploadBtn" style="width:100%;margin-top:12px;justify-content:center;padding:12px">
+            Upload credentials
+          </button>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:16px;">
+            <div style="flex:1;height:1px;background:var(--border)"></div>
+            <span style="font-size:11px;color:var(--text-3);font-weight:500">or import directly</span>
+            <div style="flex:1;height:1px;background:var(--border)"></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px;">
+            <select id="browserSelect" style="flex:1;padding:9px 10px;border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;appearance:auto;">
+              <option value="chrome">Chrome</option>
+              <option value="firefox">Firefox</option>
+              <option value="safari">Safari</option>
+              <option value="edge">Edge</option>
+              <option value="chromium">Chromium</option>
+              <option value="brave">Brave</option>
+            </select>
+            <button class="btn" id="browserCookiesBtn" style="white-space:nowrap;flex-shrink:0;">Import from browser</button>
+          </div>
+          <div class="upload-result" id="browserCookiesResult"></div>
+        </div>
       </div>
-      <div class="upload-area" id="uploadArea">
-        <p>Drop or choose <code>storage_state.json</code> to renew credentials</p>
-        <label class="btn" style="cursor:pointer">
-          Choose file
-          <input type="file" id="authFile" accept=".json,application/json">
-        </label>
-        <div class="upload-filename" id="authFilename"></div>
-        <div class="upload-result" id="uploadResult"></div>
-      </div>
-      <button class="btn btn-accent" id="uploadBtn" style="width:100%;margin-top:12px;justify-content:center;padding:12px">
-        Upload credentials
-      </button>
-      <div style="display:flex;align-items:center;gap:8px;margin-top:16px;">
-        <div style="flex:1;height:1px;background:var(--border)"></div>
-        <span style="font-size:11px;color:var(--text-3);font-weight:500">or import directly</span>
-        <div style="flex:1;height:1px;background:var(--border)"></div>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:12px;">
-        <select id="browserSelect" style="flex:1;padding:9px 10px;border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;appearance:auto;">
-          <option value="chrome">Chrome</option>
-          <option value="firefox">Firefox</option>
-          <option value="safari">Safari</option>
-          <option value="edge">Edge</option>
-          <option value="chromium">Chromium</option>
-          <option value="brave">Brave</option>
-        </select>
-        <button class="btn" id="browserCookiesBtn" style="white-space:nowrap;flex-shrink:0;">Import from browser</button>
-      </div>
-      <div class="upload-result" id="browserCookiesResult"></div>
     </div>
 
     <div style="margin-top:22px; padding-top:18px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:8px;">
@@ -1453,6 +1505,33 @@
   overlay.addEventListener('click', e => { if (e.target === overlay) closeAdmin(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAdmin(); });
 
+  document.getElementById('queueStatusToggle').addEventListener('click', () => {
+    const list = document.getElementById('queueJobList');
+    const chevron = document.getElementById('queueChevron');
+    const open = list.style.display === 'block';
+    list.style.display = open ? 'none' : 'block';
+    chevron.classList.toggle('open', !open);
+  });
+
+  function makeAccordion(headerId, bodyId, chevId) {
+    document.getElementById(headerId).addEventListener('click', () => {
+      const body = document.getElementById(bodyId);
+      const chev = document.getElementById(chevId);
+      const open = body.style.display !== 'none';
+      body.style.display = open ? 'none' : 'block';
+      chev.classList.toggle('open', !open);
+    });
+  }
+  makeAccordion('feedsAccordion', 'feedsBody', 'feedsChev');
+  makeAccordion('sessionAccordion', 'sessionBody', 'sessionChev');
+
+  document.getElementById('renewCredsToggle').addEventListener('click', () => {
+    const body = document.getElementById('renewCredsBody');
+    const open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : 'block';
+    document.getElementById('renewCredsToggle').textContent = open ? 'Renew credentials' : 'Cancel';
+  });
+
   document.getElementById('webhookTestBtn').addEventListener('click', async () => {
     const btn = document.getElementById('webhookTestBtn');
     btn.textContent = 'Sending…'; btn.disabled = true;
@@ -1489,6 +1568,7 @@
       const queueEl = document.getElementById('statQueue');
       const queueRow = document.getElementById('queueStatusRow');
       const queueText = document.getElementById('queueStatusText');
+      const queueJobList = document.getElementById('queueJobList');
       if (pending + generating === 0) {
         queueEl.textContent = '—';
         queueEl.style.color = 'var(--text-2)';
@@ -1501,6 +1581,16 @@
         queueEl.style.color = 'var(--accent)';
         queueRow.style.display = 'block';
         queueText.textContent = parts.join(' · ');
+        const jobs = s.queue_jobs ?? [];
+        queueJobList.innerHTML = jobs.map(j => {
+          const ts = j.status === 'generating' ? j.updated_at : j.created_at;
+          const label = j.status === 'generating' ? 'started' : 'queued';
+          return `<div class="queue-job-row">
+            <span class="queue-job-badge ${j.status}">${j.status}</span>
+            <span class="queue-job-title">${j.title}</span>
+            <span class="queue-job-meta">${j.feed_name} · ${label} ${relTime(ts)}</span>
+          </div>`;
+        }).join('');
       }
       document.getElementById('statUpdated').textContent = s.last_updated ? relTime(s.last_updated) : '—';
       if (s.version) document.getElementById('appVersion').textContent = `NoteCast ${s.version}`;

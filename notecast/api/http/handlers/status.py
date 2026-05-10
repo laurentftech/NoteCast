@@ -18,6 +18,7 @@ async def handle_status(request: web.Request) -> web.Response:
     done_jobs = repo.get_all_done_jobs(user)
     last_updated = done_jobs[0].created_at.isoformat() if done_jobs else None
     queue = repo.get_queue_counts(user)
+    active_jobs = repo.get_active_jobs(user) if hasattr(repo, "get_active_jobs") else []
 
     feed_url = (
         f"{settings.base_url}/feed/{user.feed_token}.xml"
@@ -29,6 +30,17 @@ async def handle_status(request: web.Request) -> web.Response:
         "episodes": len(done_jobs),
         "pending": queue["pending"],
         "generating": queue["generating"],
+        "queue_jobs": [
+            {
+                "id": j.id,
+                "title": j.title,
+                "feed_name": j.feed_name,
+                "status": j.status,
+                "created_at": j.created_at.isoformat(),
+                "updated_at": j.updated_at.isoformat(),
+            }
+            for j in active_jobs
+        ],
         "next_poll_in": None,
         "last_updated": last_updated,
         "feed_url": feed_url,

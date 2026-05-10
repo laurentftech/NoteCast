@@ -134,6 +134,8 @@ chmod +x refresh-auth.sh
 
 > **Note:** Safari cookie extraction has a known bug in some rookiepy versions — use `--browser chrome` or `--browser firefox` if it fails.
 
+> **Session duration:** Browser cookies capture your existing Google session, which typically lasts ~1 year. Credentials obtained via `notebooklm login` (Playwright) usually expire after ~1 month.
+
 **Option B — Playwright login (fallback)**
 
 ```bash
@@ -166,6 +168,10 @@ docker compose logs -f notecast-bridge
 ### 7. Subscribe
 
 Open the web UI at your domain, click the settings icon, and copy the RSS URL from the **Published Feeds** section. Paste into Overcast, Pocket Casts, Apple Podcasts, or any RSS-capable app.
+
+### 8. Manage episodes
+
+The web UI lists all generated episodes. Each row has a trash icon to delete it individually, or use the checkbox column to select multiple episodes and bulk-delete them. Deleting an episode removes the audio file and rebuilds the RSS feed immediately. The episode URL is still remembered, so it won't be re-queued on the next poll.
 
 ---
 
@@ -289,6 +295,7 @@ Renew credentials using the `refresh-auth.sh` script (see step 5), the **Admin p
 | `GET` | `/api/feeds` | bearer / key | Published RSS feeds with URLs and episode counts |
 | `POST` | `/api/poll` | bearer / key | Trigger an immediate poll |
 | `POST` | `/api/webhook/test` | bearer / key | Send a test webhook notification |
+| `DELETE` | `/api/episodes/{job_id}` | bearer / key | Delete an episode (removes audio file, marks job deleted, rebuilds feed) |
 | `POST` | `/api/auth/upload` | bearer / key | Upload a new `storage_state.json` |
 | `POST` | `/api/auth/browser-cookies` | bearer / key | Import credentials directly from an installed browser (requires `notebooklm-py[cookies]` on the server) |
 | `GET` | `/feed/{user}/{name}.xml` | token in query | RSS feed (e.g. `?token=abc123`) |
