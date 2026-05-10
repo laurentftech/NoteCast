@@ -329,7 +329,10 @@
     }
 
     /* Swipe-to-delete */
-    .ep-wrap { position: relative; overflow: hidden; border-radius: var(--radius); }
+    .ep-wrap {
+      position: relative; overflow: hidden; border-radius: var(--radius);
+      touch-action: pan-y;
+    }
     .episode {
       position: relative; z-index: 1;
       background: var(--surface);
@@ -344,7 +347,10 @@
       font-size: 12px; font-weight: 600;
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
+      opacity: 0; pointer-events: none;
+      transition: opacity .1s;
     }
+    .ep-wrap.swiped .swipe-del { opacity: 1; pointer-events: auto; }
     .swipe-del:active { background: #b91c1c; }
 
     .ep-info { flex: 1; min-width: 0; }
@@ -1808,6 +1814,7 @@
     if (!epEl) return;
     epEl.style.transition = 'transform .22s ease';
     epEl.style.transform = 'translateX(0)';
+    epEl.closest('.ep-wrap')?.classList.remove('swiped');
   }
 
   function attachSwipe(wrap) {
@@ -1839,8 +1846,13 @@
       tracking = false;
       ep.style.transition = 'transform .22s ease';
       const tx = new DOMMatrix(getComputedStyle(ep).transform).m41;
-      if (tx < -SNAP) { ep.style.transform = `translateX(-${DEL_W}px)`; swiped = true; }
-      else { ep.style.transform = 'translateX(0)'; swiped = false; }
+      if (tx < -SNAP) {
+        ep.style.transform = `translateX(-${DEL_W}px)`;
+        swiped = true; wrap.classList.add('swiped');
+      } else {
+        ep.style.transform = 'translateX(0)';
+        swiped = false; wrap.classList.remove('swiped');
+      }
     };
     ep.addEventListener('pointerup', release);
     ep.addEventListener('pointercancel', release);
@@ -1849,9 +1861,8 @@
   // Reset any open swipe when clicking outside
   document.addEventListener('pointerdown', e => {
     if (e.target.closest('.ep-wrap')) return;
-    document.querySelectorAll('.episode').forEach(ep => {
-      const tx = new DOMMatrix(getComputedStyle(ep).transform).m41;
-      if (tx < -10) resetSwipe(ep);
+    document.querySelectorAll('.ep-wrap.swiped').forEach(wrap => {
+      resetSwipe(wrap.querySelector('.episode'));
     });
   });
 
