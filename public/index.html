@@ -287,6 +287,20 @@
     .play-btn svg { width: 14px; height: 14px; }
     .play-btn .icon-play { transform: translateX(1px); }
 
+    .del-btn {
+      width: 30px; height: 30px;
+      border-radius: 8px;
+      border: none; cursor: pointer; flex-shrink: 0;
+      background: none;
+      color: var(--text-3);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0;
+      transition: opacity .12s, background .12s, color .12s;
+    }
+    .episode:hover .del-btn { opacity: 1; }
+    .del-btn:hover { background: rgba(220,38,38,.12); color: #dc2626; }
+    .del-btn svg { width: 14px; height: 14px; pointer-events: none; }
+
     .ep-info { flex: 1; min-width: 0; }
     .ep-title {
       font-size: 14.5px;
@@ -1176,6 +1190,9 @@
           <span class="eq" aria-hidden="true"><span></span><span></span><span></span></span>
           ${badge}
           ${ep.duration ? `<span class="ep-duration">${fmt(ep.duration)}</span>` : ''}
+          <button class="del-btn" data-del-id="${escapeHtml(ep.id)}" aria-label="Delete episode">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+          </button>
         </div>
       </div>`;
   }
@@ -1252,11 +1269,37 @@
       }
 
       container.querySelectorAll('.episode').forEach(el => {
-        el.addEventListener('click', () => playEpisode(
-          el.dataset.id,
-          el.dataset.url,
-          el.querySelector('.ep-title').textContent
-        ));
+        el.addEventListener('click', e => {
+          if (e.target.closest('.del-btn')) return;
+          playEpisode(el.dataset.id, el.dataset.url, el.querySelector('.ep-title').textContent);
+        });
+      });
+
+      container.querySelectorAll('.del-btn').forEach(btn => {
+        btn.addEventListener('click', async e => {
+          e.stopPropagation();
+          const id = btn.dataset.delId;
+          const row = document.getElementById(`ep-${id}`);
+          const title = row?.querySelector('.ep-title')?.textContent || 'this episode';
+          if (!confirm(`Delete "${title}"?\nThis removes the audio file and cannot be undone.`)) return;
+          btn.disabled = true;
+          try {
+            const res = await authFetch(`/api/episodes/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+              row?.remove();
+              episodes = episodes.filter(e => e.id !== id);
+              const count = episodes.length;
+              document.getElementById('sectionCount').textContent = count === 1 ? '1 episode' : `${count} episodes`;
+            } else {
+              const j = await res.json().catch(() => ({}));
+              alert(j.error || 'Delete failed');
+              btn.disabled = false;
+            }
+          } catch {
+            alert('Delete failed');
+            btn.disabled = false;
+          }
+        });
       });
     } catch {
       container.innerHTML = '<div class="empty"><p>Could not load episodes.</p></div>';

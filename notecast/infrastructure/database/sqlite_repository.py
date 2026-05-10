@@ -161,6 +161,14 @@ class SQLiteJobRepository(JobRepository):
             ).fetchone()
         return row[0]
 
+    def get_job(self, user: User, job_id: str) -> Optional[Job]:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM jobs WHERE user_name=? AND id=?",
+                (user.name, job_id)
+            ).fetchone()
+        return Job(**dict(row)) if row else None
+
     def get_known_notebook_ids(self, user: User) -> set[str]:
         with self._conn() as conn:
             rows = conn.execute(

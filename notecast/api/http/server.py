@@ -16,6 +16,7 @@ from notecast.api.http.handlers.feeds import handle_feeds
 from notecast.api.http.handlers.health import handle_health
 from notecast.api.http.handlers.poll import handle_poll
 from notecast.api.http.handlers.status import handle_status
+from notecast.api.http.handlers.delete_episode import handle_delete_episode
 from notecast.api.http.handlers.upload import handle_browser_cookies, handle_upload
 from notecast.api.http.handlers.webhook import handle_webhook
 from notecast.api.http.middleware import auth_middleware, error_middleware
@@ -73,6 +74,7 @@ def create_app(
     # Authenticated API routes
     app.router.add_get("/api/status", handle_status)
     app.router.add_get("/api/episodes", handle_episodes)
+    app.router.add_delete("/api/episodes/{job_id}", handle_delete_episode)
     app.router.add_get("/api/feeds", handle_feeds)
     app.router.add_post("/api/poll", handle_poll)
     app.router.add_post("/api/auth", handle_auth)
