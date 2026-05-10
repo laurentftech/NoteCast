@@ -325,6 +325,53 @@ The API SHALL support `GET /api/feed` to retrieve the generated podcast feed.
 - **WHEN** GET /api/feed is called
 - **THEN** 200 OK with feed in response body
 
+### Requirement: POSTAuth
+
+The API SHALL support `POST /api/auth/upload` to upload a Playwright `storage_state.json` file to renew NotebookLM credentials for the authenticated user.
+
+**Request:** multipart/form-data with field `file` containing the JSON credential file.
+
+**Response:**
+
+```json
+{
+  "ok": "boolean"
+}
+```
+
+#### Scenario: UploadCredentials
+- **GIVEN** Authenticated user with a valid storage_state.json
+- **WHEN** POST /api/auth/upload is called with the file
+- **THEN** 200 OK and credentials written to user's auth_file
+
+### Requirement: POSTAuth
+
+The API SHALL support `POST /api/auth/browser-cookies` to import NotebookLM credentials directly from an installed browser without requiring a file upload.
+
+**Request:**
+
+```json
+{
+  "browser": "chrome | firefox | safari | edge | chromium | brave"
+}
+```
+
+**Response:**
+
+```json
+{
+  "ok": "boolean",
+  "error": "string (on failure)"
+}
+```
+
+#### Scenario: ImportBrowserCookies
+- **GIVEN** Authenticated user and notebooklm-py[cookies] installed
+- **WHEN** POST /api/auth/browser-cookies is called with a browser name
+- **THEN** 200 OK and cookies written to user's auth_file
+- **WHEN** rookiepy is not installed
+- **THEN** 400 with error message
+
 ### Requirement: POSTWebhook
 
 The API SHALL support `POST /api/webhook` to trigger a webhook notification.

@@ -948,6 +948,23 @@
       <button class="btn btn-accent" id="uploadBtn" style="width:100%;margin-top:12px;justify-content:center;padding:12px">
         Upload credentials
       </button>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:16px;">
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <span style="font-size:11px;color:var(--text-3);font-weight:500">or import directly</span>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <select id="browserSelect" style="flex:1;padding:9px 10px;border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;appearance:auto;">
+          <option value="chrome">Chrome</option>
+          <option value="firefox">Firefox</option>
+          <option value="safari">Safari</option>
+          <option value="edge">Edge</option>
+          <option value="chromium">Chromium</option>
+          <option value="brave">Brave</option>
+        </select>
+        <button class="btn" id="browserCookiesBtn" style="white-space:nowrap;flex-shrink:0;">Import from browser</button>
+      </div>
+      <div class="upload-result" id="browserCookiesResult"></div>
     </div>
 
     <div style="margin-top:22px; padding-top:18px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:8px;">
@@ -1547,6 +1564,30 @@
       result.className = 'upload-result err';
     }
     result.style.display = 'block';
+  });
+
+  document.getElementById('browserCookiesBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('browserCookiesBtn');
+    const browser = document.getElementById('browserSelect').value;
+    const result = document.getElementById('browserCookiesResult');
+    btn.textContent = 'Importing…';
+    btn.disabled = true;
+    try {
+      const res = await authFetch('/api/auth/browser-cookies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ browser }),
+      });
+      const json = await res.json();
+      result.textContent = json.ok ? `✓ Imported from ${browser}` : (json.error || 'Import failed');
+      result.className = 'upload-result ' + (json.ok ? 'ok' : 'err');
+    } catch {
+      result.textContent = 'Import failed.';
+      result.className = 'upload-result err';
+    }
+    result.style.display = 'block';
+    btn.textContent = 'Import from browser';
+    btn.disabled = false;
   });
 
   // ── Init ──────────────────────────────────────────
