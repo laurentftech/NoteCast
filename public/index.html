@@ -936,6 +936,11 @@
         NotebookLM Session
         <span id="sessionBadge" style="font-size:11px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--text-3)">—</span>
       </div>
+      <div id="scriptTokenRow" style="display:none;align-items:center;gap:8px;margin-bottom:14px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;">
+        <span style="font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.06em;flex-shrink:0;">Script token</span>
+        <code id="scriptTokenValue" style="flex:1;font-size:11.5px;font-family:'SF Mono',Menlo,Consolas,monospace;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></code>
+        <button class="btn" id="copyTokenBtn" style="padding:4px 10px;font-size:11px;flex-shrink:0;">Copy</button>
+      </div>
       <div class="upload-area" id="uploadArea">
         <p>Drop or choose <code>storage_state.json</code> to renew credentials</p>
         <label class="btn" style="cursor:pointer">
@@ -1396,7 +1401,14 @@
       }
       document.getElementById('statUpdated').textContent = s.last_updated ? relTime(s.last_updated) : '—';
       if (s.version) document.getElementById('appVersion').textContent = `NoteCast ${s.version}`;
-      if (s.feed_url) feedUrl = s.feed_url;
+      if (s.feed_url) {
+        feedUrl = s.feed_url;
+        const tokenMatch = s.feed_url.match(/\/feed\/([^/]+)\.xml$/);
+        if (tokenMatch) {
+          document.getElementById('scriptTokenValue').textContent = tokenMatch[1];
+          document.getElementById('scriptTokenRow').style.display = 'flex';
+        }
+      }
       const webhookRow = document.getElementById('webhookRow');
       webhookRow.style.display = s.webhook_enabled ? 'flex' : 'none';
       
@@ -1564,6 +1576,16 @@
       result.className = 'upload-result err';
     }
     result.style.display = 'block';
+  });
+
+  document.getElementById('copyTokenBtn').addEventListener('click', () => {
+    const token = document.getElementById('scriptTokenValue').textContent;
+    if (!token) return;
+    navigator.clipboard.writeText(token).then(() => {
+      const btn = document.getElementById('copyTokenBtn');
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+    });
   });
 
   document.getElementById('browserCookiesBtn').addEventListener('click', async () => {
