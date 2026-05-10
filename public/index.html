@@ -300,8 +300,7 @@
       transition: opacity .12s, background .12s, border-color .12s;
       position: relative;
     }
-    .episode:hover .ep-check,
-    .ep-check:checked { opacity: 1; }
+    .select-mode .ep-check { opacity: 1; }
     .ep-check:checked {
       background: var(--accent);
       border-color: var(--accent);
@@ -329,19 +328,24 @@
       font-size: 13px; font-weight: 600; color: var(--accent); flex: 1;
     }
 
-    .del-btn {
-      width: 30px; height: 30px;
-      border-radius: 8px;
-      border: none; cursor: pointer; flex-shrink: 0;
-      background: none;
-      color: var(--text-3);
-      display: flex; align-items: center; justify-content: center;
-      opacity: 0;
-      transition: opacity .12s, background .12s, color .12s;
+    /* Swipe-to-delete */
+    .ep-wrap { position: relative; overflow: hidden; border-radius: var(--radius); }
+    .episode {
+      position: relative; z-index: 1;
+      background: var(--surface);
+      transform: translateX(0);
+      transition: transform .22s ease;
+      will-change: transform;
     }
-    .episode:hover .del-btn { opacity: 1; }
-    .del-btn:hover { background: rgba(220,38,38,.12); color: #dc2626; }
-    .del-btn svg { width: 14px; height: 14px; pointer-events: none; }
+    .swipe-del {
+      position: absolute; right: 0; top: 0; bottom: 0; width: 80px;
+      background: #dc2626; color: #fff;
+      border: none; cursor: pointer;
+      font-size: 12px; font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .swipe-del:active { background: #b91c1c; }
 
     .ep-info { flex: 1; min-width: 0; }
     .ep-title {
@@ -732,16 +736,16 @@
       from { opacity: 0; transform: translateY(6px); }
       to   { opacity: 1; transform: none; }
     }
-    .episodes .episode {
+    .episodes .ep-wrap {
       animation: fadeUp .35s ease both;
     }
-    .episodes .episode:nth-child(1) { animation-delay: .02s; }
-    .episodes .episode:nth-child(2) { animation-delay: .04s; }
-    .episodes .episode:nth-child(3) { animation-delay: .06s; }
-    .episodes .episode:nth-child(4) { animation-delay: .08s; }
-    .episodes .episode:nth-child(5) { animation-delay: .10s; }
-    .episodes .episode:nth-child(6) { animation-delay: .12s; }
-    .episodes .episode:nth-child(n+7) { animation-delay: .14s; }
+    .episodes .ep-wrap:nth-child(1) { animation-delay: .02s; }
+    .episodes .ep-wrap:nth-child(2) { animation-delay: .04s; }
+    .episodes .ep-wrap:nth-child(3) { animation-delay: .06s; }
+    .episodes .ep-wrap:nth-child(4) { animation-delay: .08s; }
+    .episodes .ep-wrap:nth-child(5) { animation-delay: .10s; }
+    .episodes .ep-wrap:nth-child(6) { animation-delay: .12s; }
+    .episodes .ep-wrap:nth-child(n+7) { animation-delay: .14s; }
 
     /* ── Feed groups ── */
     .feed-group { margin-bottom: 24px; animation: fadeUp .3s ease both; }
@@ -912,6 +916,7 @@
   <div class="section-title">
     <span>Episodes</span>
     <span class="count" id="sectionCount"></span>
+    <button class="btn" id="selectModeBtn" style="padding:4px 10px;font-size:11px;letter-spacing:0;text-transform:none;font-weight:600;margin-left:auto;">Select</button>
   </div>
   <div class="bulk-bar" id="bulkBar">
     <span class="bulk-count" id="bulkCount"></span>
@@ -1277,24 +1282,24 @@
       ? `<span class="ep-feed-badge" style="background:${feedColor(ep.feed_name || 'imported')}">${escapeHtml(ep.notebook || ep.feed_name || '')}</span>`
       : '';
     return `
-      <div class="episode" id="ep-${escapeHtml(ep.id)}" data-id="${escapeHtml(ep.id)}" data-url="${escapeHtml(ep.url)}">
-        <input type="checkbox" class="ep-check" data-check-id="${escapeHtml(ep.id)}" aria-label="Select episode">
-        <button class="play-btn" aria-label="Play ${escapeHtml(ep.title)}">
-          <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-          <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
-        </button>
-        <div class="ep-info">
-          <div class="ep-title">${escapeHtml(ep.title)}</div>
-          <div class="ep-meta">${relTime(ep.created_at)}</div>
-        </div>
-        <div class="ep-aside">
-          <span class="eq" aria-hidden="true"><span></span><span></span><span></span></span>
-          ${badge}
-          ${ep.duration ? `<span class="ep-duration">${fmt(ep.duration)}</span>` : ''}
-          <button class="del-btn" data-del-id="${escapeHtml(ep.id)}" aria-label="Delete episode">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      <div class="ep-wrap">
+        <div class="episode" id="ep-${escapeHtml(ep.id)}" data-id="${escapeHtml(ep.id)}" data-url="${escapeHtml(ep.url)}">
+          <input type="checkbox" class="ep-check" data-check-id="${escapeHtml(ep.id)}" aria-label="Select episode">
+          <button class="play-btn" aria-label="Play ${escapeHtml(ep.title)}">
+            <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
           </button>
+          <div class="ep-info">
+            <div class="ep-title">${escapeHtml(ep.title)}</div>
+            <div class="ep-meta">${relTime(ep.created_at)}</div>
+          </div>
+          <div class="ep-aside">
+            <span class="eq" aria-hidden="true"><span></span><span></span><span></span></span>
+            ${badge}
+            ${ep.duration ? `<span class="ep-duration">${fmt(ep.duration)}</span>` : ''}
+          </div>
         </div>
+        <button class="swipe-del" data-del-id="${escapeHtml(ep.id)}" aria-label="Delete episode">Delete</button>
       </div>`;
   }
 
@@ -1371,7 +1376,9 @@
 
       container.querySelectorAll('.episode').forEach(el => {
         el.addEventListener('click', e => {
-          if (e.target.closest('.del-btn')) return;
+          if (selectMode) return;
+          const tx = new DOMMatrix(getComputedStyle(el).transform).m41;
+          if (tx < -10) { resetSwipe(el); return; }
           playEpisode(el.dataset.id, el.dataset.url, el.querySelector('.ep-title').textContent);
         });
       });
@@ -1387,29 +1394,34 @@
         cb.addEventListener('click', e => e.stopPropagation());
       });
 
-      container.querySelectorAll('.del-btn').forEach(btn => {
+      container.querySelectorAll('.ep-wrap').forEach(wrap => attachSwipe(wrap));
+
+      container.querySelectorAll('.swipe-del').forEach(btn => {
         btn.addEventListener('click', async e => {
           e.stopPropagation();
           const id = btn.dataset.delId;
+          const wrap = btn.closest('.ep-wrap');
           const row = document.getElementById(`ep-${id}`);
           const title = row?.querySelector('.ep-title')?.textContent || 'this episode';
-          if (!confirm(`Delete "${title}"?\nThis removes the audio file and cannot be undone.`)) return;
+          if (!confirm(`Delete "${title}"?\nThis removes the audio file and cannot be undone.`)) {
+            resetSwipe(row); return;
+          }
           btn.disabled = true;
           try {
             const res = await authFetch(`/api/episodes/${id}`, { method: 'DELETE' });
             if (res.ok) {
-              row?.remove();
+              wrap?.remove();
               episodes = episodes.filter(e => e.id !== id);
               const count = episodes.length;
               document.getElementById('sectionCount').textContent = count === 1 ? '1 episode' : `${count} episodes`;
             } else {
               const j = await res.json().catch(() => ({}));
               alert(j.error || 'Delete failed');
-              btn.disabled = false;
+              btn.disabled = false; resetSwipe(row);
             }
           } catch {
             alert('Delete failed');
-            btn.disabled = false;
+            btn.disabled = false; resetSwipe(row);
           }
         });
       });
@@ -1587,7 +1599,7 @@
           const label = j.status === 'generating' ? 'started' : 'queued';
           return `<div class="queue-job-row">
             <span class="queue-job-badge ${j.status}">${j.status}</span>
-            <span class="queue-job-title">${j.title}</span>
+            <span class="queue-job-title" title="${j.title}">${j.title}</span>
             <span class="queue-job-meta">${j.feed_name} · ${label} ${relTime(ts)}</span>
           </div>`;
         }).join('');
@@ -1768,8 +1780,80 @@
     result.style.display = 'block';
   });
 
-  // ── Bulk selection ───────────────────────────────
+  // ── Select mode + swipe-to-delete ───────────────
   const selectedIds = new Set();
+  let selectMode = false;
+
+  function enterSelectMode() {
+    selectMode = true;
+    document.getElementById('episodes').classList.add('select-mode');
+    document.getElementById('selectModeBtn').textContent = 'Done';
+  }
+
+  function exitSelectMode() {
+    selectMode = false;
+    document.getElementById('episodes').classList.remove('select-mode');
+    document.getElementById('selectModeBtn').textContent = 'Select';
+    document.querySelectorAll('.ep-check').forEach(cb => { cb.checked = false; });
+    document.querySelectorAll('.episode.selected').forEach(el => el.classList.remove('selected'));
+    selectedIds.clear();
+    updateBulkBar();
+  }
+
+  document.getElementById('selectModeBtn').addEventListener('click', () => {
+    selectMode ? exitSelectMode() : enterSelectMode();
+  });
+
+  function resetSwipe(epEl) {
+    if (!epEl) return;
+    epEl.style.transition = 'transform .22s ease';
+    epEl.style.transform = 'translateX(0)';
+  }
+
+  function attachSwipe(wrap) {
+    const ep = wrap.querySelector('.episode');
+    const DEL_W = 80, SNAP = 50;
+    let startX, startY, tracking = false, swiped = false, moved = false;
+
+    ep.addEventListener('pointerdown', e => {
+      if (selectMode || e.button !== 0) return;
+      startX = e.clientX; startY = e.clientY;
+      tracking = true; moved = false;
+      ep.style.transition = 'none';
+      ep.setPointerCapture(e.pointerId);
+    });
+
+    ep.addEventListener('pointermove', e => {
+      if (!tracking) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (!moved && Math.abs(dy) > Math.abs(dx)) { tracking = false; ep.style.transition = 'transform .22s ease'; return; }
+      moved = true;
+      const base = swiped ? -DEL_W : 0;
+      const tx = Math.max(-DEL_W, Math.min(0, base + dx));
+      ep.style.transform = `translateX(${tx}px)`;
+    });
+
+    const release = () => {
+      if (!tracking) return;
+      tracking = false;
+      ep.style.transition = 'transform .22s ease';
+      const tx = new DOMMatrix(getComputedStyle(ep).transform).m41;
+      if (tx < -SNAP) { ep.style.transform = `translateX(-${DEL_W}px)`; swiped = true; }
+      else { ep.style.transform = 'translateX(0)'; swiped = false; }
+    };
+    ep.addEventListener('pointerup', release);
+    ep.addEventListener('pointercancel', release);
+  }
+
+  // Reset any open swipe when clicking outside
+  document.addEventListener('pointerdown', e => {
+    if (e.target.closest('.ep-wrap')) return;
+    document.querySelectorAll('.episode').forEach(ep => {
+      const tx = new DOMMatrix(getComputedStyle(ep).transform).m41;
+      if (tx < -10) resetSwipe(ep);
+    });
+  });
 
   function updateBulkBar() {
     const bar = document.getElementById('bulkBar');
@@ -1815,7 +1899,7 @@
       try {
         const res = await authFetch(`/api/episodes/${id}`, { method: 'DELETE' });
         if (res.ok) {
-          document.getElementById(`ep-${id}`)?.remove();
+          document.getElementById(`ep-${id}`)?.closest('.ep-wrap')?.remove();
           episodes = episodes.filter(e => e.id !== id);
           selectedIds.delete(id);
         } else { failed++; }
