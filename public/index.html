@@ -287,6 +287,48 @@
     .play-btn svg { width: 14px; height: 14px; }
     .play-btn .icon-play { transform: translateX(1px); }
 
+    .ep-check {
+      width: 18px; height: 18px;
+      border-radius: 5px;
+      border: 1.5px solid var(--border-strong);
+      background: var(--surface);
+      flex-shrink: 0;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      opacity: 0;
+      transition: opacity .12s, background .12s, border-color .12s;
+      position: relative;
+    }
+    .episode:hover .ep-check,
+    .ep-check:checked { opacity: 1; }
+    .ep-check:checked {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .ep-check:checked::after {
+      content: '';
+      position: absolute; top: 3px; left: 5px;
+      width: 5px; height: 8px;
+      border: 2px solid #fff; border-top: none; border-left: none;
+      transform: rotate(45deg);
+    }
+    .episode.selected { background: var(--accent-softer); }
+
+    .bulk-bar {
+      display: none;
+      align-items: center; gap: 8px;
+      padding: 8px 6px;
+      margin-bottom: 10px;
+      background: var(--accent-soft);
+      border: 1px solid var(--accent-soft);
+      border-radius: var(--radius);
+    }
+    .bulk-bar.visible { display: flex; }
+    .bulk-count {
+      font-size: 13px; font-weight: 600; color: var(--accent); flex: 1;
+    }
+
     .del-btn {
       width: 30px; height: 30px;
       border-radius: 8px;
@@ -839,6 +881,12 @@
     <span>Episodes</span>
     <span class="count" id="sectionCount"></span>
   </div>
+  <div class="bulk-bar" id="bulkBar">
+    <span class="bulk-count" id="bulkCount"></span>
+    <button class="btn" id="selectAllBtn" style="padding:5px 10px;font-size:12px;">Select all</button>
+    <button class="btn" id="clearSelBtn" style="padding:5px 10px;font-size:12px;">Clear</button>
+    <button class="btn" id="bulkDeleteBtn" style="padding:5px 10px;font-size:12px;color:#dc2626;border-color:#dc2626;">Delete selected</button>
+  </div>
   <div class="episodes" id="episodes">
     <div class="empty"><div class="spinner"></div></div>
   </div>
@@ -1178,6 +1226,7 @@
       : '';
     return `
       <div class="episode" id="ep-${escapeHtml(ep.id)}" data-id="${escapeHtml(ep.id)}" data-url="${escapeHtml(ep.url)}">
+        <input type="checkbox" class="ep-check" data-check-id="${escapeHtml(ep.id)}" aria-label="Select episode">
         <button class="play-btn" aria-label="Play ${escapeHtml(ep.title)}">
           <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
           <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
@@ -1273,6 +1322,17 @@
           if (e.target.closest('.del-btn')) return;
           playEpisode(el.dataset.id, el.dataset.url, el.querySelector('.ep-title').textContent);
         });
+      });
+
+      selectedIds.clear();
+      updateBulkBar();
+
+      container.querySelectorAll('.ep-check').forEach(cb => {
+        cb.addEventListener('change', e => {
+          e.stopPropagation();
+          toggleSelect(cb.dataset.checkId, cb.checked);
+        });
+        cb.addEventListener('click', e => e.stopPropagation());
       });
 
       container.querySelectorAll('.del-btn').forEach(btn => {
@@ -1616,6 +1676,66 @@
       result.className = 'upload-result err';
     }
     result.style.display = 'block';
+  });
+
+  // ── Bulk selection ───────────────────────────────
+  const selectedIds = new Set();
+
+  function updateBulkBar() {
+    const bar = document.getElementById('bulkBar');
+    const countEl = document.getElementById('bulkCount');
+    const n = selectedIds.size;
+    if (n === 0) { bar.classList.remove('visible'); return; }
+    bar.classList.add('visible');
+    countEl.textContent = `${n} selected`;
+  }
+
+  function toggleSelect(id, checked) {
+    const row = document.getElementById(`ep-${id}`);
+    if (checked) { selectedIds.add(id); row?.classList.add('selected'); }
+    else          { selectedIds.delete(id); row?.classList.remove('selected'); }
+    updateBulkBar();
+  }
+
+  document.getElementById('selectAllBtn').addEventListener('click', () => {
+    document.querySelectorAll('.ep-check').forEach(cb => {
+      cb.checked = true;
+      selectedIds.add(cb.dataset.checkId);
+      document.getElementById(`ep-${cb.dataset.checkId}`)?.classList.add('selected');
+    });
+    updateBulkBar();
+  });
+
+  document.getElementById('clearSelBtn').addEventListener('click', () => {
+    document.querySelectorAll('.ep-check').forEach(cb => { cb.checked = false; });
+    document.querySelectorAll('.episode.selected').forEach(el => el.classList.remove('selected'));
+    selectedIds.clear();
+    updateBulkBar();
+  });
+
+  document.getElementById('bulkDeleteBtn').addEventListener('click', async () => {
+    if (!selectedIds.size) return;
+    const n = selectedIds.size;
+    if (!confirm(`Delete ${n} episode${n > 1 ? 's' : ''}?\nAudio files will be removed and cannot be recovered.`)) return;
+    const btn = document.getElementById('bulkDeleteBtn');
+    btn.textContent = 'Deleting…'; btn.disabled = true;
+    const ids = [...selectedIds];
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        const res = await authFetch(`/api/episodes/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          document.getElementById(`ep-${id}`)?.remove();
+          episodes = episodes.filter(e => e.id !== id);
+          selectedIds.delete(id);
+        } else { failed++; }
+      } catch { failed++; }
+    }
+    const count = episodes.length;
+    document.getElementById('sectionCount').textContent = count === 1 ? '1 episode' : `${count} episodes`;
+    btn.textContent = 'Delete selected'; btn.disabled = false;
+    updateBulkBar();
+    if (failed) alert(`${failed} episode(s) could not be deleted.`);
   });
 
   document.getElementById('copyTokenBtn').addEventListener('click', () => {
