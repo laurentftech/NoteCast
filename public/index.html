@@ -1401,13 +1401,10 @@
       }
       document.getElementById('statUpdated').textContent = s.last_updated ? relTime(s.last_updated) : '—';
       if (s.version) document.getElementById('appVersion').textContent = `NoteCast ${s.version}`;
-      if (s.feed_url) {
-        feedUrl = s.feed_url;
-        const tokenMatch = s.feed_url.match(/\/feed\/([^/]+)\.xml$/);
-        if (tokenMatch) {
-          document.getElementById('scriptTokenValue').textContent = tokenMatch[1];
-          document.getElementById('scriptTokenRow').style.display = 'flex';
-        }
+      if (s.feed_url) feedUrl = s.feed_url;
+      if (s.feed_token) {
+        document.getElementById('scriptTokenValue').textContent = s.feed_token;
+        document.getElementById('scriptTokenRow').style.display = 'flex';
       }
       const webhookRow = document.getElementById('webhookRow');
       webhookRow.style.display = s.webhook_enabled ? 'flex' : 'none';

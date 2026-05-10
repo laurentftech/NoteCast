@@ -32,6 +32,7 @@ async def handle_status(request: web.Request) -> web.Response:
         "next_poll_in": None,
         "last_updated": last_updated,
         "feed_url": feed_url,
+        "feed_token": user.feed_token,
         "webhook_enabled": bool(settings.webhook_url),
         "version": os.environ.get("APP_VERSION", "dev"),
     }
