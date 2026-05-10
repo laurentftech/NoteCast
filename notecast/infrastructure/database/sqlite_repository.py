@@ -178,6 +178,18 @@ class SQLiteJobRepository(JobRepository):
             ).fetchone()
         return Job(**dict(row)) if row else None
 
+    def reset_stale_generating_jobs(self, user: User, timeout_seconds: int) -> int:
+        cutoff = datetime.now().isoformat()
+        with self._conn() as conn:
+            cur = conn.execute(
+                "UPDATE jobs SET status='pending', notebook_id=NULL, artifact_id=NULL, updated_at=? "
+                "WHERE user_name=? AND status='generating' "
+                "AND (julianday(?) - julianday(updated_at)) * 86400 > ?",
+                (cutoff, user.name, cutoff, timeout_seconds),
+            )
+            conn.commit()
+        return cur.rowcount
+
     def get_known_notebook_ids(self, user: User) -> set[str]:
         with self._conn() as conn:
             rows = conn.execute(

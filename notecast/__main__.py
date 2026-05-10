@@ -109,6 +109,9 @@ async def main():
             repo = repo_factory(user)
             repo.init(user)
             logger.info(f"Initialized database for user {user.name}")
+            recovered = repo.reset_stale_generating_jobs(user, settings.generation_timeout)
+            if recovered:
+                logger.warning("Recovered %d stale generating job(s) for %s → reset to pending", recovered, user.name)
         except Exception as e:
             logger.error(f"Failed to initialize database for {user.name}: {e}")
 
