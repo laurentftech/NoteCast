@@ -351,6 +351,9 @@
       transition: opacity .1s;
     }
     .ep-wrap.swiped .swipe-del { opacity: 1; pointer-events: auto; }
+    @media (hover: hover) and (pointer: fine) {
+      .episode:hover .swipe-del { opacity: 1; pointer-events: auto; }
+    }
     .swipe-del:active { background: #b91c1c; }
 
     .ep-info { flex: 1; min-width: 0; }
@@ -1400,7 +1403,8 @@
         cb.addEventListener('click', e => e.stopPropagation());
       });
 
-      container.querySelectorAll('.ep-wrap').forEach(wrap => attachSwipe(wrap));
+      const isTouch = window.matchMedia('(hover: none), (pointer: coarse)').matches;
+      if (isTouch) container.querySelectorAll('.ep-wrap').forEach(wrap => attachSwipe(wrap));
 
       container.querySelectorAll('.swipe-del').forEach(btn => {
         btn.addEventListener('click', async e => {
