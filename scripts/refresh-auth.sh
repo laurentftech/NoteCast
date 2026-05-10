@@ -68,6 +68,14 @@ rm -f /tmp/notecast-upload-response.json
 
 if [[ "$HTTP_STATUS" == "200" ]]; then
   echo "✓ Credentials updated successfully"
+elif [[ "$HTTP_STATUS" == "401" ]]; then
+  echo "Error: authentication required (HTTP 401)"
+  echo ""
+  echo "This NoteCast instance requires a token. Re-run with:"
+  echo "  $0 --url $NOTECAST_URL --browser $BROWSER --token <your-feed-token>"
+  echo ""
+  echo "Find your token: Admin panel → NotebookLM Session → Script token → Copy"
+  exit 1
 else
   echo "Error: server returned HTTP $HTTP_STATUS"
   echo "$BODY"
