@@ -43,20 +43,25 @@ class WebhookClient:
         if link:
             payload["link"] = link
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                self._webhook_url,
-                json=payload,
-                headers=self._webhook_headers,
-            ) as response:
-                response_text = await response.text()
-                logger.info(
-                    "Webhook response - URL: %s, Status: %d, Response: %s",
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
                     self._webhook_url,
-                    response.status,
-                    response_text[:200]  # Log first 200 chars
-                )
-                response.raise_for_status()
+                    json=payload,
+                    headers=self._webhook_headers,
+                ) as response:
+                    response_text = await response.text()
+                    logger.info(
+                        "Webhook response - URL: %s, Status: %d, Response: %s",
+                        self._webhook_url,
+                        response.status,
+                        response_text[:200]  # Log first 200 chars
+                    )
+                    response.raise_for_status()
+        except Exception as exc:
+            logger.error("Webhook delivery failed - URL: %s, Error: %s", 
+                        self._webhook_url, str(exc))
+            raise
 
     async def notify_job_started(self, user: User, job_id: str, feed_name: str) -> None:
         """Notify that a job has started.
