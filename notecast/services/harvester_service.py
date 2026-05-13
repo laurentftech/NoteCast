@@ -112,6 +112,17 @@ class HarvesterService:
             repo.update_job(user, job.id, **update)
 
             logger.info("Imported orphaned notebook '%s' (%s)", nb.title, nb.id)
+            
+            # Send webhook notification
+            webhook = await self._get_webhook_client(user)
+            if webhook:
+                try:
+                    await webhook.notify_job_completed(
+                        user, job.id, "imported", nb.title or nb.id
+                    )
+                except Exception as exc:
+                    logger.error("Failed to send webhook for imported notebook %s: %s", nb.id, exc)
+            
             imported += 1
             await self._feed_service.rebuild_feed(user, "imported", imported_title)
 
@@ -141,6 +152,16 @@ class HarvesterService:
             user, job.id, status="done", artifact_id=artifact_id, duration=duration
         )
         logger.info("Recovered job %s -> %s", job.id, path)
+
+        # Send webhook notification
+        webhook = await self._get_webhook_client(user)
+        if webhook:
+            try:
+                await webhook.notify_job_completed(
+                    user, job.id, job.feed_name, job.title
+                )
+            except Exception as exc:
+                logger.error("Failed to send webhook for job %s: %s", job.id, exc)
 
         await self._feed_service.rebuild_feed(user, job.feed_name, job.feed_title)
 

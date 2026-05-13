@@ -65,19 +65,22 @@ class WebhookClient:
             message=f"Job {job_id} for feed '{feed_name}' has started.",
         )
 
-    async def notify_job_completed(self, user: User, job_id: str, feed_name: str) -> None:
+    async def notify_job_completed(
+        self, user: User, job_id: str, feed_name: str, episode_title: str = ""
+    ) -> None:
         """Notify that a job has completed.
         
         Args:
             user: User object
             job_id: Job identifier
             feed_name: Feed name
+            episode_title: Episode title (optional)
         """
-        await self.post(
-            user,
-            title="Job Completed",
-            message=f"Job {job_id} for feed '{feed_name}' has completed.",
-        )
+        title = f"Job Completed: {episode_title}" if episode_title else "Job Completed"
+        message = f"Job {job_id} for feed '{feed_name}' has completed."
+        if episode_title:
+            message += f"\nEpisode: {episode_title}"
+        await self.post(user, title=title, message=message)
 
     async def notify_job_failed(self, user: User, job_id: str, feed_name: str, error: str) -> None:
         """Notify that a job has failed.
