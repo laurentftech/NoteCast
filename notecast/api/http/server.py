@@ -18,7 +18,7 @@ from notecast.api.http.handlers.poll import handle_poll
 from notecast.api.http.handlers.status import handle_status
 from notecast.api.http.handlers.delete_episode import handle_delete_episode
 from notecast.api.http.handlers.upload import handle_browser_cookies, handle_upload
-from notecast.api.http.handlers.webhook import handle_webhook
+from notecast.api.http.handlers.webhook import handle_webhook, handle_webhook_test
 from notecast.api.http.middleware import auth_middleware, error_middleware
 from notecast.infrastructure.config.settings import Settings
 from notecast.services.feed_service import FeedService
@@ -38,10 +38,6 @@ async def error_middleware_handler(request: Request, handler: Handler) -> Stream
 @middleware
 async def auth_middleware_handler(request: Request, handler: Handler) -> StreamResponse:
     return await auth_middleware(request, handler)
-
-
-async def handle_webhook_test(request: web.Request) -> web.Response:
-    return web.json_response({"status": "ok", "message": "webhook test not configured"})
 
 
 def create_app(
