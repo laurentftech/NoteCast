@@ -66,11 +66,9 @@ async def handle_webhook_test(request: web.Request) -> web.Response:
                 {"error": "Failed to initialize webhook client"}, status=500
             )
 
-        # Send test notification
-        await client.notify_job_completed(
-            user, 
-            "test_artifact_id", 
-            "test",
+        # Send test notification using direct post method
+        await client.post(
+            user,
             title="Webhook Test Notification",
             message="This is a test notification from NoteCast"
         )
