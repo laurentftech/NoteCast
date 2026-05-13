@@ -1,9 +1,10 @@
 """Harvester service - recovers stuck generating jobs from NotebookLM."""
+
 import logging
 from typing import Optional
 
 from notecast.core.interfaces import JobRepository
-from notecast.core.models import User, Artifact
+from notecast.core.models import Artifact, User
 from notecast.infrastructure.config.settings import Settings
 from notecast.infrastructure.external.notebooklm_client import NotebookLMClientWrapper
 from notecast.infrastructure.external.webhook_client import WebhookClient
@@ -42,7 +43,9 @@ class HarvesterService:
 
         async with await self._nb_client.session(user) as client:
             if stuck_jobs:
-                logger.info("Recovering %d stuck job(s) for user %s", len(stuck_jobs), user.name)
+                logger.info(
+                    "Recovering %d stuck job(s) for user %s", len(stuck_jobs), user.name
+                )
                 for job in stuck_jobs:
                     try:
                         await self._recover_job(client, repo, user, job)
@@ -52,9 +55,13 @@ class HarvesterService:
 
             await self._scan_orphaned_notebooks(client, repo, user)
 
-    async def _scan_orphaned_notebooks(self, client, repo: JobRepository, user: User) -> None:
+    async def _scan_orphaned_notebooks(
+        self, client, repo: JobRepository, user: User
+    ) -> None:
         """Import NotebookLM notebooks that have audio but no DB record."""
-        from notecast.core.models import Episode as EpisodeModel, Artifact as ArtifactModel
+        from notecast.core.models import Artifact as ArtifactModel
+        from notecast.core.models import Episode as EpisodeModel
+
         try:
             notebooks = await client._client.notebooks.list()
         except Exception as exc:
@@ -77,7 +84,9 @@ class HarvesterService:
             artifact_id = audio_list[0].id
             artifact = ArtifactModel(id=artifact_id, notebook_id=nb.id)
             try:
-                path = await self._storage.download_and_remux(client, user, "imported", artifact)
+                path = await self._storage.download_and_remux(
+                    client, user, "imported", artifact
+                )
                 duration = self._storage.get_duration(path)
             except Exception as exc:
                 logger.error("Failed to download orphaned notebook %s: %s", nb.id, exc)
@@ -92,7 +101,12 @@ class HarvesterService:
                 style="deep-dive",
             )
             job = repo.create_job(user, episode)
-            update = dict(status="done", notebook_id=nb.id, artifact_id=artifact_id, duration=duration)
+            update = dict(
+                status="done",
+                notebook_id=nb.id,
+                artifact_id=artifact_id,
+                duration=duration,
+            )
             if nb.created_at:
                 update["created_at"] = nb.created_at.isoformat()
             repo.update_job(user, job.id, **update)
@@ -102,22 +116,30 @@ class HarvesterService:
             await self._feed_service.rebuild_feed(user, "imported", imported_title)
 
         if imported:
-            logger.info("Imported %d orphaned notebook(s) for user %s", imported, user.name)
+            logger.info(
+                "Imported %d orphaned notebook(s) for user %s", imported, user.name
+            )
 
     async def _recover_job(self, client, repo: JobRepository, user: User, job) -> None:
         # Check if audio artifact exists on NotebookLM
         audio_list = await client._client.artifacts.list_audio(job.notebook_id)
         if not audio_list:
-            logger.debug("Job %s: audio not ready yet (notebook=%s)", job.id, job.notebook_id)
+            logger.debug(
+                "Job %s: audio not ready yet (notebook=%s)", job.id, job.notebook_id
+            )
             return
 
         artifact_id = job.artifact_id or audio_list[0].id
         artifact = Artifact(id=artifact_id, notebook_id=job.notebook_id)
 
-        path = await self._storage.download_and_remux(client, user, job.feed_name, artifact)
+        path = await self._storage.download_and_remux(
+            client, user, job.feed_name, artifact
+        )
         duration = self._storage.get_duration(path)
 
-        repo.update_job(user, job.id, status="done", artifact_id=artifact_id, duration=duration)
+        repo.update_job(
+            user, job.id, status="done", artifact_id=artifact_id, duration=duration
+        )
         logger.info("Recovered job %s -> %s", job.id, path)
 
         await self._feed_service.rebuild_feed(user, job.feed_name, job.feed_title)
@@ -127,17 +149,32 @@ class HarvesterService:
         except Exception as exc:
             logger.warning("Could not delete notebook %s: %s", job.notebook_id, exc)
 
+    async def _get_webhook_client(self, user: User) -> Optional[WebhookClient]:
+        """Get webhook client (global or per-user)."""
+        if self._webhook:
+            return self._webhook
+        if user.webhook_url:
+            try:
+                return WebhookClient(
+                    webhook_url=user.webhook_url,
+                    webhook_headers=user.webhook_headers,
+                )
+            except Exception as exc:
+                logger.error("Failed to create webhook client for user %s: %s", user.name, exc)
+        return None
+
     async def download_artifact(
         self, client, notebook_id: str, artifact_id: str, user: User, output_path: str
     ) -> Optional[Artifact]:
         """Download a single artifact to output_path."""
+        webhook = await self._get_webhook_client(user)
         try:
             await client.download_audio(notebook_id, output_path, artifact_id)
             artifact = Artifact(id=artifact_id, notebook_id=notebook_id)
-            if self._webhook:
-                await self._webhook.notify_job_completed(user, artifact_id, "harvest")
+            if webhook:
+                await webhook.notify_job_completed(user, artifact_id, "harvest")
             return artifact
         except Exception as exc:
-            if self._webhook:
-                await self._webhook.notify_job_failed(user, artifact_id, "harvest", str(exc))
+            if webhook:
+                await webhook.notify_job_failed(user, artifact_id, "harvest", str(exc))
             return None
