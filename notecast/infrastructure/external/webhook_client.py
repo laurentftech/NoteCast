@@ -49,6 +49,13 @@ class WebhookClient:
                 json=payload,
                 headers=self._webhook_headers,
             ) as response:
+                response_text = await response.text()
+                logger.info(
+                    "Webhook response - URL: %s, Status: %d, Response: %s",
+                    self._webhook_url,
+                    response.status,
+                    response_text[:200]  # Log first 200 chars
+                )
                 response.raise_for_status()
 
     async def notify_job_started(self, user: User, job_id: str, feed_name: str) -> None:
