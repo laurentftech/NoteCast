@@ -1,9 +1,12 @@
 """Status handler."""
 import json
+import logging
 import math
 import os
 import time
 from aiohttp import web
+
+logger = logging.getLogger(__name__)
 
 
 async def handle_status(request: web.Request) -> web.Response:
@@ -26,6 +29,14 @@ async def handle_status(request: web.Request) -> web.Response:
         else f"{settings.base_url}/feed.xml"
     )
 
+    # Check webhook: per-user first, fallback to global
+    webhook_enabled = bool(user.webhook_url) if user else bool(settings.webhook_url)
+    logger.info("Webhook status - user: %s, per-user: %s, global: %s, enabled: %s",
+                user.name if user else "none",
+                bool(user.webhook_url) if user else False,
+                bool(settings.webhook_url),
+                webhook_enabled)
+
     payload = {
         "episodes": len(done_jobs),
         "pending": queue["pending"],
@@ -45,7 +56,7 @@ async def handle_status(request: web.Request) -> web.Response:
         "last_updated": last_updated,
         "feed_url": feed_url,
         "feed_token": user.feed_token,
-        "webhook_enabled": bool(settings.webhook_url),
+        "webhook_enabled": webhook_enabled,
         "version": os.environ.get("APP_VERSION", "dev"),
     }
 
