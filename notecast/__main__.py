@@ -22,7 +22,7 @@ from notecast.workers.poller_worker import PollerWorker
 from notecast.workers.transformer_worker import TransformerWorker
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
