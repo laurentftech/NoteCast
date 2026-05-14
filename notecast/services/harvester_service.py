@@ -78,18 +78,22 @@ class HarvesterService:
         imported = 0
 
         for nb in notebooks:
+            logger.info("Processing notebook %s: %s", nb.id, nb.title)
             if nb.id in known_ids:
-                logger.debug("Skipping known notebook %s for user %s", nb.id, user.name)
+                logger.info("Skipping known notebook %s: %s", nb.id, nb.title)
                 continue
             try:
                 audio_list = await client._client.artifacts.list_audio(nb.id)
-            except Exception:
-                continue
-            if not audio_list:
+                if not audio_list:
+                    logger.info("Skipping notebook %s: no audio artifacts found", nb.id)
+                    continue
+            except Exception as exc:
+                logger.warning("Failed to get audio list for notebook %s: %s", nb.id, exc)
                 continue
 
             artifact_id = audio_list[0].id
             artifact = ArtifactModel(id=artifact_id, notebook_id=nb.id)
+            logger.info("Found audio artifact %s for notebook %s: %s", artifact_id, nb.id, nb.title)
             try:
                 path = await self._storage.download_and_remux(
                     client, user, "imported", artifact
