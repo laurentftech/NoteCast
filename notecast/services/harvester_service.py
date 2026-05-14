@@ -172,16 +172,20 @@ class HarvesterService:
 
     async def _get_webhook_client(self, user: User) -> Optional[WebhookClient]:
         """Get webhook client (global or per-user)."""
+        logger.debug("_get_webhook_client called for user %s, user.webhook_url=%s", user.name, user.webhook_url)
         if self._webhook:
+            logger.debug("Using global webhook client")
             return self._webhook
         if user.webhook_url:
             try:
+                logger.debug("Creating per-user webhook client with URL: %s", user.webhook_url)
                 return WebhookClient(
                     webhook_url=user.webhook_url,
                     webhook_headers=user.webhook_headers,
                 )
             except Exception as exc:
                 logger.error("Failed to create webhook client for user %s: %s", user.name, exc)
+        logger.debug("No webhook client available for user %s", user.name)
         return None
 
     async def download_artifact(
