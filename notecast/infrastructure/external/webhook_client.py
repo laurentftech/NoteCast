@@ -1,8 +1,11 @@
 """Webhook client for sending notifications."""
 import aiohttp
+import logging
 from typing import Dict, Optional
 
 from notecast.core.models import User
+
+logger = logging.getLogger(__name__)
 
 
 class WebhookClient:
