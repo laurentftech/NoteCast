@@ -35,11 +35,15 @@ class HarvesterService:
 
     async def harvest_user(self, user: User) -> None:
         """Check for stuck generating jobs and scan for orphaned NotebookLM audio."""
+        logger.info("Starting harvest for user %s", user.name)
+        
         if not user.auth_file.exists():
+            logger.debug("No auth file for user %s, skipping harvest", user.name)
             return
 
         repo: JobRepository = self._repo_factory(user)
         stuck_jobs = repo.get_generating_jobs(user)
+        logger.info("Found %d stuck generating jobs for user %s", len(stuck_jobs), user.name)
 
         async with await self._nb_client.session(user) as client:
             if stuck_jobs:
@@ -64,15 +68,18 @@ class HarvesterService:
 
         try:
             notebooks = await client._client.notebooks.list()
+            logger.info("Found %d notebooks for user %s", len(notebooks), user.name)
         except Exception as exc:
             logger.warning("Could not list notebooks for user %s: %s", user.name, exc)
             return
 
         known_ids = repo.get_known_notebook_ids(user)
+        logger.info("User %s has %d known notebooks in database", user.name, len(known_ids))
         imported = 0
 
         for nb in notebooks:
             if nb.id in known_ids:
+                logger.debug("Skipping known notebook %s for user %s", nb.id, user.name)
                 continue
             try:
                 audio_list = await client._client.artifacts.list_audio(nb.id)
