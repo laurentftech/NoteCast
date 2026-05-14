@@ -49,6 +49,7 @@ class Job(BaseModel):
     duration: int | None = None
     retries: int = 0
     max_retries: int = 1
+    error_message: str = ""
     created_at: datetime
     updated_at: datetime
 
