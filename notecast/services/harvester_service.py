@@ -102,7 +102,9 @@ class HarvesterService:
                 # Check if this known notebook actually has a completed job
                 existing_job = repo.get_job_by_notebook_id(user, nb.id)
                 if existing_job:
-                    logger.info("Skipping known notebook %s: %s (job %s status=%s)", nb.id, nb.title, existing_job.id, existing_job.status)
+                    if existing_job.status != "done":
+                        logger.info("Skipping known notebook %s: %s (job %s status=%s)", nb.id, nb.title, existing_job.id, existing_job.status)
+                    # Don't log for successful 'done' jobs to reduce noise
                 else:
                     logger.warning("Known notebook %s: %s has no job record - possible orphaned entry", nb.id, nb.title)
                 continue
