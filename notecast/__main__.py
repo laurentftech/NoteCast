@@ -27,6 +27,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Reduce verbosity of external libraries
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+
 
 async def main():
     import os
