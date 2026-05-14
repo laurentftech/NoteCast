@@ -50,6 +50,9 @@ async def handle_webhook_test(request: web.Request) -> web.Response:
     harvester_service: HarvesterService = request.app["harvester_service"]
     webhook_client = request.app.get("webhook_client")
     
+    logger.debug("User webhook_url: %s", user.webhook_url)
+    logger.debug("Global webhook_client: %s", webhook_client)
+    
     if not webhook_client and not user.webhook_url:
         return web.json_response(
             {"error": "No webhook configured for this user"}, status=400
