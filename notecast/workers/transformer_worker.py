@@ -69,6 +69,25 @@ class TransformerWorker:
         if repo.get_generating_jobs(user):
             return  # wait for in-flight generation to complete before submitting next
 
+        # Check for failed jobs and retry them
+        failed_jobs = repo.get_failed_jobs(user)
+        if failed_jobs:
+            for failed_job in failed_jobs:
+                logger.info("Retrying failed transformer job %s: %s (feed=%s)", 
+                          failed_job.id, failed_job.title, failed_job.feed_name)
+                try:
+                    repo.update_job(
+                        user, 
+                        failed_job.id, 
+                        status="pending",
+                        error_message="",
+                        retries=(failed_job.retries or 0) + 1
+                    )
+                    logger.info("Successfully reset job %s for retry (attempt %d)", 
+                              failed_job.id, (failed_job.retries or 0) + 1)
+                except Exception as exc:
+                    logger.error("Failed to reset job %s for retry: %s", failed_job.id, exc)
+
         job = await self._job_service.get_next_pending(user)
         if not job:
             return
