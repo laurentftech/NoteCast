@@ -34,6 +34,7 @@ class WebhookClient:
             aiohttp.ClientError: If webhook request fails
         """
         if not self._webhook_url:
+            logger.warning("Webhook URL not configured, skipping notification for user %s", user.name)
             return
 
         payload = {

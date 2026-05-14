@@ -61,6 +61,10 @@ async def handle_webhook_test(request: web.Request) -> web.Response:
             await harvester_service._get_webhook_client(user)
         )
         
+        logger.debug("Webhook client initialized: %s", client)
+        if client:
+            logger.debug("Webhook URL: %s", getattr(client, '_webhook_url', 'N/A'))
+        
         if not client:
             return web.json_response(
                 {"error": "Failed to initialize webhook client"}, status=500
