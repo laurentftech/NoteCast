@@ -1,5 +1,6 @@
 """Webhook client for sending notifications."""
 import aiohttp
+import json
 import logging
 from typing import Dict, Optional
 
@@ -38,22 +39,32 @@ class WebhookClient:
             logger.warning("Webhook URL not configured, skipping notification for user %s", user.name)
             return
 
-        payload = {
-            "user": user.name,
-            "title": title,
-            "message": message,
-            "email": user.email,
-        }
-
-        if link:
-            payload["link"] = link
+        # Format payload for ntfy compatibility
+        if "ntfy" in self._webhook_url:
+            # ntfy format: title as topic prefix, message as body
+            payload = f"{title}\n\n{message}"
+            if link:
+                payload += f"\n\n{link}"
+            headers = self._webhook_headers.copy()
+            headers["Title"] = title  # ntfy uses Title header for notifications
+        else:
+            # Standard JSON format for other webhook providers
+            payload = {
+                "user": user.name,
+                "title": title,
+                "message": message,
+                "email": user.email,
+            }
+            if link:
+                payload["link"] = link
+            headers = self._webhook_headers
 
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     self._webhook_url,
-                    json=payload,
-                    headers=self._webhook_headers,
+                    data=payload if isinstance(payload, str) else json.dumps(payload),
+                    headers=headers,
                 ) as response:
                     response_text = await response.text()
                     logger.info(
