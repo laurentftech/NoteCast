@@ -80,12 +80,12 @@ class HarvesterService:
         for nb in notebooks:
             logger.info("Processing notebook %s: %s", nb.id, nb.title)
             if nb.id in known_ids:
-                # Check if this known notebook actually has audio in the database
-                existing_episode = repo.get_episode_by_notebook_id(user, nb.id)
-                if existing_episode:
-                    logger.info("Skipping known notebook %s: %s (episode %s exists)", nb.id, nb.title, existing_episode.id)
+                # Check if this known notebook actually has a completed job
+                existing_job = repo.get_job_by_notebook_id(user, nb.id)
+                if existing_job:
+                    logger.info("Skipping known notebook %s: %s (job %s status=%s)", nb.id, nb.title, existing_job.id, existing_job.status)
                 else:
-                    logger.warning("Known notebook %s: %s has no episode record - possible orphaned entry", nb.id, nb.title)
+                    logger.warning("Known notebook %s: %s has no job record - possible orphaned entry", nb.id, nb.title)
                 continue
             try:
                 audio_list = await client._client.artifacts.list_audio(nb.id)

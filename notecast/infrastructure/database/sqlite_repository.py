@@ -197,3 +197,12 @@ class SQLiteJobRepository(JobRepository):
                 (user.name,)
             ).fetchall()
         return {row[0] for row in rows}
+
+    def get_job_by_notebook_id(self, user: User, notebook_id: str) -> Optional[Job]:
+        """Get a job by notebook ID to check if it has been processed."""
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT * FROM jobs WHERE user_name=? AND notebook_id=?",
+                (user.name, notebook_id)
+            ).fetchone()
+        return Job(**dict(row)) if row else None
