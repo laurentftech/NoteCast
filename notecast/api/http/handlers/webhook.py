@@ -21,6 +21,8 @@ async def handle_webhook(request: web.Request) -> web.Response:
     user_name = data.get("user")
     event_type = data.get("event")
 
+    logger.info("Received webhook - user: %s, event: %s, data: %s", user_name, event_type, data)
+
     if not user_name:
         return web.json_response({"error": "Missing user"}, status=400)
 
@@ -32,7 +34,9 @@ async def handle_webhook(request: web.Request) -> web.Response:
 
     # Process webhook based on event type
     if event_type == "artifact_ready":
+        logger.info("Processing artifact_ready event for user %s", user_name)
         await harvester_service.harvest_user(user)
+        logger.info("Completed harvest_user for user %s", user_name)
 
     return web.json_response({"status": "ok"})
 
