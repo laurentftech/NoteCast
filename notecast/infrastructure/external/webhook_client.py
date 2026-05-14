@@ -14,6 +14,7 @@ class WebhookClient:
     def __init__(self, webhook_url: str = "", webhook_headers: Optional[Dict] = None):
         self._webhook_url = webhook_url
         self._webhook_headers = webhook_headers or {}
+        logger.debug("WebhookClient initialized with URL: %s", self._webhook_url)
 
     async def post(
         self,
