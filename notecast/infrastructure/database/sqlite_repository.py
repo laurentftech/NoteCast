@@ -206,3 +206,12 @@ class SQLiteJobRepository(JobRepository):
                 (user.name, notebook_id)
             ).fetchone()
         return Job(**dict(row)) if row else None
+
+    def get_failed_jobs(self, user: User) -> List[Job]:
+        """Get all failed jobs for diagnostics."""
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM jobs WHERE user_name=? AND status='failed' ORDER BY created_at DESC",
+                (user.name,)
+            ).fetchall()
+        return [Job(**dict(row)) for row in rows]

@@ -57,6 +57,13 @@ class HarvesterService:
                         logger.error("Failed to recover job %s: %s", job.id, exc)
                         repo.update_job(user, job.id, status="failed")
 
+            # Check for failed jobs that might need retry
+            failed_jobs = repo.get_failed_jobs(user)
+            if failed_jobs:
+                logger.warning("Found %d failed jobs for user %s that need attention", len(failed_jobs), user.name)
+                for job in failed_jobs:
+                    logger.warning("Failed job %s: %s (error: %s)", job.id, job.title, job.error_message or "unknown error")
+
             await self._scan_orphaned_notebooks(client, repo, user)
 
     async def _scan_orphaned_notebooks(
