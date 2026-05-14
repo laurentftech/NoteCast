@@ -133,7 +133,7 @@ class UserService:
                 webhook_headers=wh_headers,
                 webhook_link=wh_link,
             ))
-            logger.info(f"Loaded user: {name} ({email})")
+            logger.info(f"Loaded user: {name} ({email}) with webhook_url: {wh_url}")
 
         return users
 
