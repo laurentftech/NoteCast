@@ -130,14 +130,18 @@ class HarvesterService:
 
             artifact_id = audio_list[0].id
             artifact = ArtifactModel(id=artifact_id, notebook_id=nb.id)
-            logger.info("Found audio artifact %s for notebook %s: %s", artifact_id, nb.id, nb.title)
+            logger.info("%s audio artifact %s for notebook %s: %s", 
+                       "Found" if not is_known_with_audio else "Retrying", 
+                       artifact_id, nb.id, nb.title)
             try:
+                logger.info("Starting download for notebook %s: %s", nb.id, nb.title)
                 path = await self._storage.download_and_remux(
                     client, user, "imported", artifact
                 )
+                logger.info("Successfully downloaded notebook %s: %s to %s", nb.id, nb.title, path)
                 duration = self._storage.get_duration(path)
             except Exception as exc:
-                logger.error("Failed to download orphaned notebook %s: %s", nb.id, exc)
+                logger.error("Failed to download notebook %s: %s", nb.id, exc)
                 continue
 
             imported_title = self._settings.imported_feed_title
