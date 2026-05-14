@@ -173,7 +173,8 @@ class HarvesterService:
     async def _get_webhook_client(self, user: User) -> Optional[WebhookClient]:
         """Get webhook client (global or per-user)."""
         logger.debug("_get_webhook_client called for user %s, user.webhook_url=%s", user.name, user.webhook_url)
-        if self._webhook:
+        # Only use global webhook if it has a URL (prefer per-user if available)
+        if self._webhook and self._webhook._webhook_url:
             logger.debug("Using global webhook client")
             return self._webhook
         if user.webhook_url:
