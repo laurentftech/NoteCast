@@ -169,11 +169,15 @@ class HarvesterService:
             webhook = await self._get_webhook_client(user)
             if webhook:
                 try:
+                    logger.info("Sending webhook notification for imported notebook %s: %s", nb.id, nb.title)
                     await webhook.notify_job_completed(
                         user, job.id, "imported", nb.title or nb.id
                     )
+                    logger.info("Webhook notification sent successfully for notebook %s", nb.id)
                 except Exception as exc:
                     logger.error("Failed to send webhook for imported notebook %s: %s", nb.id, exc)
+            else:
+                logger.debug("No webhook client available for user %s", user.name)
             
             imported += 1
             await self._feed_service.rebuild_feed(user, "imported", imported_title)
