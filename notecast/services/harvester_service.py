@@ -103,7 +103,18 @@ class HarvesterService:
                 existing_job = repo.get_job_by_notebook_id(user, nb.id)
                 if existing_job:
                     if existing_job.status != "done":
-                        logger.info("Skipping known notebook %s: %s (job %s status=%s)", nb.id, nb.title, existing_job.id, existing_job.status)
+                        # Check if this failed job now has audio available in NotebookLM
+                        try:
+                            audio_list = await client._client.artifacts.list_audio(nb.id)
+                            if audio_list:
+                                logger.info("Retrying download for failed notebook %s: %s (audio now available)", nb.id, nb.title)
+                                # Don't continue - proceed to download below
+                            else:
+                                logger.info("Skipping known notebook %s: %s (job %s status=%s, no audio)", nb.id, nb.title, existing_job.id, existing_job.status)
+                                continue
+                        except Exception as exc:
+                            logger.warning("Failed to check audio for known notebook %s: %s", nb.id, exc)
+                            continue
                     # Don't log for successful 'done' jobs to reduce noise
                 else:
                     logger.warning("Known notebook %s: %s has no job record - possible orphaned entry", nb.id, nb.title)
