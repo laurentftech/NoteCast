@@ -18,6 +18,7 @@ WORKDIR /app
 
 COPY pyproject.toml .
 COPY notecast/ notecast/
+COPY public/index.html index.html
 
 RUN uv pip install --system --no-cache -e . && \
     python -m playwright install chromium

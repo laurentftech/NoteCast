@@ -85,10 +85,10 @@ def create_app(
     # Static files (index.html + audio episodes)
     static_path = Path(settings.public_dir)
     if static_path.exists():
-        index = static_path / "index.html"
+        index = settings.index_html if settings.index_html.exists() else static_path / "index.html"
 
-        async def serve_index(request: web.Request) -> web.Response:
-            return web.FileResponse(index)
+        async def serve_index(_request: web.Request) -> web.StreamResponse:
+            return web.FileResponse(index, headers={"Cache-Control": "no-cache"})
 
         app.router.add_get("/", serve_index)
         app.router.add_static("/", static_path, name="static", follow_symlinks=True)

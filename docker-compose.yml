@@ -14,7 +14,6 @@ services:
       - ./config:/config:ro
       - ./whisper-cache:/root/.cache/huggingface
     environment:
-      - PUBLIC_DIR=/public
       - DATA_BASE=/data
 
   caddy:
