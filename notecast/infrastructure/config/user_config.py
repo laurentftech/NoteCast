@@ -57,7 +57,7 @@ def save_user_config(user, feeds) -> None:
     data = {
         "feeds": [
             {k: v for k, v in f.model_dump().items()
-             if v not in ("", 0) or k in ("name", "url")}
+             if v is not None and v != "" or k in ("name", "url")}
             for f in feeds
         ]
     }

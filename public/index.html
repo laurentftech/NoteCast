@@ -2094,7 +2094,7 @@
         title: get('title'),
         style: get('style') || 'deep-dive',
         language: get('language') || 'en',
-        max_episodes: parseInt(get('max_episodes'), 10) || 1,
+        max_episodes: (n => Number.isNaN(n) ? 1 : Math.max(1, n))(parseInt(get('max_episodes'), 10)),
         instructions: get('instructions'),
       };
     });
@@ -2104,7 +2104,8 @@
     try {
       const data = await authFetch('/api/transformer-config').then(r => r.json());
       _feedCfgData = Array.isArray(data) ? data : [];
-    } catch {
+    } catch (err) {
+      console.warn('loadFeedCfg failed:', err);
       _feedCfgData = [];
     }
     _renderFeedCfg();
@@ -2120,7 +2121,7 @@
   document.getElementById('feedCfgSaveBtn').addEventListener('click', async () => {
     _collectFeedCfg();
     const result = document.getElementById('feedCfgResult');
-    const invalid = _feedCfgData.find(f => !f.name.trim() || !f.url.trim());
+    const invalid = _feedCfgData.find(f => !f.name.trim() || !f.url.trim() || !f.url.startsWith('http'));
     if (invalid) {
       result.textContent = 'Each feed needs a name and URL.';
       result.className = 'upload-result err';

@@ -26,6 +26,10 @@ async def handle_put_transformer_config(request: web.Request) -> web.Response:
         feeds = [Feed(**item) for item in body]
     except Exception as exc:
         return web.json_response({"error": f"Invalid payload: {exc}"}, status=400)
-    save_user_config(user, feeds)
+    try:
+        save_user_config(user, feeds)
+    except Exception as exc:
+        logger.error("[%s] Failed to save transformer config: %s", user.name, exc)
+        return web.json_response({"error": f"Failed to save: {exc}"}, status=500)
     logger.info("[%s] transformer.yaml updated via admin UI (%d feeds)", user.name, len(feeds))
     return web.json_response({"ok": True})
