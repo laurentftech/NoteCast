@@ -769,6 +769,13 @@
       flex-shrink: 0;
     }
     .feed-cfg-del:hover { background: rgba(220, 38, 38, .22); }
+    .feed-cfg-url-hint {
+      font-size: 11px;
+      margin-top: 4px;
+      color: var(--accent);
+      padding-left: 2px;
+    }
+    .feed-cfg-url-hint.warn { color: #d97706; }
     .feed-cfg-card-hdr {
       display: flex;
       justify-content: space-between;
@@ -2041,6 +2048,51 @@
   // ── Feed Configuration ────────────────────────────
   let _feedCfgData = [];
 
+  function normalizeYouTubeUrl(raw) {
+    let url;
+    try { url = new URL(raw.trim()); } catch { return { value: raw, hint: null }; }
+    const host = url.hostname.replace(/^www\./, '');
+    if (host !== 'youtube.com' && host !== 'youtu.be') return { value: raw, hint: null };
+
+    const list = url.searchParams.get('list');
+    const channelId = url.pathname.match(/^\/channel\/(UC[\w-]+)/)?.[1];
+    const handle = url.pathname.match(/^\/@([\w.-]+)/)?.[1];
+
+    if (list && list.startsWith('PL') || list && list.startsWith('FL') || list && list.startsWith('UU')) {
+      const fixed = `https://www.youtube.com/feeds/videos.xml?playlist_id=${list}`;
+      return { value: fixed, hint: 'Converted to RSS playlist feed' };
+    }
+    if (channelId) {
+      const fixed = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+      return { value: fixed, hint: 'Converted to RSS channel feed' };
+    }
+    if (handle) {
+      return { value: raw, hint: '⚠ @handle URLs need a channel_id — open the channel page, view source, find "channelId"' };
+    }
+    if (url.pathname.startsWith('/watch')) {
+      return { value: raw, hint: '⚠ Single video URL — use a channel or playlist feed URL instead' };
+    }
+    return { value: raw, hint: null };
+  }
+
+  function _applyUrlNormalization(input) {
+    const { value, hint } = normalizeYouTubeUrl(input.value);
+    if (value !== input.value) input.value = value;
+    const card = input.closest('.feed-cfg-card');
+    let hintEl = card.querySelector('.feed-cfg-url-hint');
+    if (hint) {
+      if (!hintEl) {
+        hintEl = document.createElement('div');
+        hintEl.className = 'feed-cfg-url-hint';
+        input.parentElement.appendChild(hintEl);
+      }
+      hintEl.textContent = hint;
+      hintEl.classList.toggle('warn', hint.startsWith('⚠'));
+    } else if (hintEl) {
+      hintEl.remove();
+    }
+  }
+
   function _makeFeedCard(feed, idx) {
     const card = document.createElement('div');
     card.className = 'feed-cfg-card';
@@ -2067,6 +2119,9 @@
         <input class="feed-cfg-input" type="number" min="1" max="20" data-field="max_episodes" value="${feed.max_episodes ?? 1}"></div>
       <div class="feed-cfg-row"><label>Instructions</label>
         <textarea class="feed-cfg-input" data-field="instructions" placeholder="Optional prompt...">${escapeHtml(feed.instructions || '')}</textarea></div>`;
+    const urlInput = card.querySelector('[data-field="url"]');
+    urlInput.addEventListener('blur', () => _applyUrlNormalization(urlInput));
+    if (feed.url) _applyUrlNormalization(urlInput);
     return card;
   }
 
@@ -2090,7 +2145,7 @@
       const get = f => card.querySelector(`[data-field="${f}"]`)?.value ?? '';
       return {
         name: get('name'),
-        url: get('url'),
+        url: normalizeYouTubeUrl(get('url')).value,
         title: get('title'),
         style: get('style') || 'deep-dive',
         language: get('language') || 'en',
