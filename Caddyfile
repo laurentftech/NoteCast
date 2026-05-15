@@ -1,32 +1,6 @@
 (notecast) {
     encode gzip
-
-    handle /api/* {
-        reverse_proxy notecast-bridge:8080
-    }
-    handle /auth/* {
-        reverse_proxy notecast-bridge:8080
-    }
-    handle /health {
-        reverse_proxy notecast-bridge:8080
-    }
-
-    handle /index.html {
-        reverse_proxy notecast-bridge:8080
-    }
-
-    handle /app.js {
-        reverse_proxy notecast-bridge:8080
-    }
-
-    handle / {
-        reverse_proxy notecast-bridge:8080
-    }
-
-    handle {
-        root * /srv
-        file_server
-    }
+    reverse_proxy notecast-bridge:8080
 }
 
 {$CADDY_DOMAIN} {
