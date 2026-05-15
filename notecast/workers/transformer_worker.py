@@ -74,7 +74,7 @@ class TransformerWorker:
         if failed_jobs:
             failed_job = failed_jobs[0]
             current_retries = failed_job.retries or 0
-            max_retries = failed_job.max_retries or 1
+            max_retries = failed_job.max_retries if failed_job.max_retries is not None else 1
             if current_retries >= max_retries:
                 logger.warning(
                     "Job %s exhausted retries (%d/%d), leaving as failed: %s",
@@ -97,8 +97,8 @@ class TransformerWorker:
                     logger.info("Successfully reset job %s for retry", failed_job.id)
                 except Exception as exc:
                     logger.error("Failed to reset job %s for retry: %s", failed_job.id, exc)
-            # Don't process in this same cycle — pick up on next poll
-            return
+                # Don't process in this same cycle — pick up on next poll
+                return
 
         job = await self._job_service.get_next_pending(user)
         if not job:
