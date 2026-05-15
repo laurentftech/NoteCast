@@ -73,14 +73,20 @@ CADDY_DOMAIN=podcast.yourdomain.com       # same host, no protocol
 
 ### 4. Configure RSS feeds
 
-Edit `config/transformer.yaml`:
+**Option A — Admin UI (recommended)**
+
+Open the admin panel (⚙ icon) → expand **Feed Configuration** → add or edit feeds → **Save configuration**. Changes are written immediately to `config/transformer.yaml`.
+
+YouTube playlist or channel URLs are auto-converted to RSS feed URLs on paste.
+
+**Option B — Edit `config/transformer.yaml` directly**
 
 ```yaml
 feeds:
   # RSS/Atom feed (podcast, newsletter, blog)
   - name: my-podcast
     url: "https://example.com/feed/podcast.rss"
-    style: deep-dive        # deep-dive | brief | critique | debate
+    style: deep-dive        # deep-dive | briefing
     language: en            # language code passed to NotebookLM (e.g. fr, de, es, ja)
     max_episodes: 1
     # instructions: "Present the episode as a lively French podcast for tech enthusiasts."
@@ -208,7 +214,9 @@ GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 
 ### 3. Per-user RSS feeds (optional)
 
-Place a `transformer.yaml` under `config/{name}/` to give a user their own feed list. Falls back to `config/transformer.yaml` if absent.
+Each user can manage their own feeds from the admin panel (**Feed Configuration** accordion). Changes are saved to `config/{name}/transformer.yaml` automatically.
+
+Alternatively, place a `transformer.yaml` under `config/{name}/` manually. Falls back to `config/transformer.yaml` if absent.
 
 ```
 config/
@@ -298,6 +306,8 @@ Renew credentials using the `refresh-auth.sh` script (see step 5), the **Admin p
 | `DELETE` | `/api/episodes/{job_id}` | bearer / key | Delete an episode (removes audio file, marks job deleted, rebuilds feed) |
 | `POST` | `/api/auth/upload` | bearer / key | Upload a new `storage_state.json` |
 | `POST` | `/api/auth/browser-cookies` | bearer / key | Import credentials directly from an installed browser (requires `notebooklm-py[cookies]` on the server) |
+| `GET` | `/api/transformer-config` | bearer / key | Read current feed list as JSON |
+| `PUT` | `/api/transformer-config` | bearer / key | Write feed list (saves `config/{user}/transformer.yaml`) |
 | `GET` | `/feed/{user}/{name}.xml` | token in query | RSS feed (e.g. `?token=abc123`) |
 
 *bearer = `Authorization: Bearer <google-id-token>` (multi-user mode)*
@@ -343,7 +353,6 @@ Renew credentials using the `refresh-auth.sh` script (see step 5), the **Admin p
 │   ├── jobs.db                   # Episode database
 │   └── .feed_token               # Secret feed token
 ├── public/
-│   ├── index.html
 │   ├── episodes/
 │   │   └── default/
 │   │       └── {feed-name}/      # Audio files (.m4a)
@@ -398,18 +407,17 @@ Renew credentials using the `refresh-auth.sh` script (see step 5), the **Admin p
 
 ```bash
 cd /path/to/notecast
-curl -o public/index.html https://raw.githubusercontent.com/laurentftech/NoteCast/main/public/index.html
 docker compose pull
 docker compose up -d
 ```
 
-Episode files and credentials are untouched. The container is replaced with the new image; `index.html` is updated in place.
+Episode files and credentials are untouched. `index.html` is baked into the image — no separate file download needed.
 
 **On Synology (Container Manager UI)**
 1. *Registry* → search `ghcr.io/laurentftech/notecast` → Download latest
 2. *Container* → select `notecast-bridge` → Action → Stop → Clear → Start
 
-Or SSH into the NAS and run the commands above.
+Or SSH into the NAS and run `docker compose pull && docker compose up -d`.
 
 ---
 
@@ -429,7 +437,7 @@ Most likely cause: credentials missing or malformed. Follow step 5 above.
 
 **Feed is empty but episodes exist**
 - Verify `BASE_URL` is set correctly — episode audio URLs are built from it
-- Verify `PUBLIC_DIR=/public` and `DATA_BASE=/data` are set in `docker-compose.yml` environment section
+- Verify `DATA_BASE=/data` is set in `docker-compose.yml` environment section
 
 **Sign-in button doesn't appear (multi-user)**
 - Verify `GOOGLE_CLIENT_ID` is set in `.env`
