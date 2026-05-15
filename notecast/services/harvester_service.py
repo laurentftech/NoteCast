@@ -113,7 +113,7 @@ class HarvesterService:
             if nb.id in known_ids:
                 existing_job = repo.get_job_by_notebook_id(user, nb.id)
                 if existing_job:
-                    if existing_job.status == "done":
+                    if existing_job.status in ("done", "deleted"):
                         continue
                     # Not done — check if audio is now available
                     try:

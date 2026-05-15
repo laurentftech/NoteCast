@@ -202,7 +202,7 @@ class SQLiteJobRepository(JobRepository):
         """Get a job by notebook ID to check if it has been processed."""
         with self._conn() as conn:
             row = conn.execute(
-                "SELECT * FROM jobs WHERE user_name=? AND notebook_id=?",
+                "SELECT * FROM jobs WHERE user_name=? AND notebook_id=? ORDER BY created_at ASC",
                 (user.name, notebook_id)
             ).fetchone()
         return Job(**dict(row)) if row else None
