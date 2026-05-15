@@ -86,6 +86,7 @@ def create_app(
     static_path = Path(settings.public_dir)
     if static_path.exists():
         index = settings.index_html if settings.index_html.exists() else static_path / "index.html"
+        logger.info("Serving index.html from %s", index)
 
         async def serve_index(_request: web.Request) -> web.StreamResponse:
             return web.FileResponse(index, headers={"Cache-Control": "no-cache"})

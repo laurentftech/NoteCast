@@ -2058,7 +2058,7 @@
     const channelId = url.pathname.match(/^\/channel\/(UC[\w-]+)/)?.[1];
     const handle = url.pathname.match(/^\/@([\w.-]+)/)?.[1];
 
-    if (list && list.startsWith('PL') || list && list.startsWith('FL') || list && list.startsWith('UU')) {
+    if (list && (list.startsWith('PL') || list.startsWith('FL') || list.startsWith('UU'))) {
       const fixed = `https://www.youtube.com/feeds/videos.xml?playlist_id=${list}`;
       return { value: fixed, hint: 'Converted to RSS playlist feed' };
     }
@@ -2084,7 +2084,7 @@
       if (!hintEl) {
         hintEl = document.createElement('div');
         hintEl.className = 'feed-cfg-url-hint';
-        input.parentElement.appendChild(hintEl);
+        input.parentElement.after(hintEl);
       }
       hintEl.textContent = hint;
       hintEl.classList.toggle('warn', hint.startsWith('⚠'));
