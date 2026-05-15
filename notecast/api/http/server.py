@@ -86,12 +86,17 @@ def create_app(
     static_path = Path(settings.public_dir)
     if static_path.exists():
         index = settings.index_html if settings.index_html.exists() else static_path / "index.html"
-        logger.info("Serving index.html from %s", index)
+        app_js = settings.app_js if settings.app_js.exists() else static_path / "app.js"
+        logger.info("Serving index.html from %s, app.js from %s", index, app_js)
 
         async def serve_index(_request: web.Request) -> web.StreamResponse:
             return web.FileResponse(index, headers={"Cache-Control": "no-cache"})
 
+        async def serve_app_js(_request: web.Request) -> web.StreamResponse:
+            return web.FileResponse(app_js, headers={"Cache-Control": "no-cache"})
+
         app.router.add_get("/", serve_index)
+        app.router.add_get("/app.js", serve_app_js)
         app.router.add_static("/", static_path, name="static", follow_symlinks=True)
 
     logger.info("HTTP server application created")

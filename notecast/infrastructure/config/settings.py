@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     config_dir: Path = Path("/config")  # per-user transformer.yaml lives here
     public_dir: Path = Path("/public")
     index_html: Path = Path("/app/index.html")
+    app_js: Path = Path("/app/app.js")
     webhook_url: str = ""
     webhook_headers: Dict = {}
     webhook_link: str = ""
