@@ -62,17 +62,26 @@ class HarvesterService:
             if failed_jobs:
                 logger.warning("Found %d failed jobs for user %s - attempting to retry", len(failed_jobs), user.name)
                 for job in failed_jobs:
-                    logger.warning("Retrying failed job %s: %s (previous error: %s)", job.id, job.title, job.error_message or "unknown error")
+                    current_retries = job.retries or 0
+                    max_retries = job.max_retries or 1
+                    if current_retries >= max_retries:
+                        logger.warning(
+                            "Job %s exhausted retries (%d/%d), leaving as failed: %s",
+                            job.id, current_retries, max_retries, job.title,
+                        )
+                        continue
+                    logger.warning("Retrying failed job %s: %s (attempt %d/%d, previous error: %s)",
+                                   job.id, job.title, current_retries + 1, max_retries,
+                                   job.error_message or "unknown error")
                     try:
-                        # Reset job to pending state for retry
                         repo.update_job(
-                            user, 
-                            job.id, 
+                            user,
+                            job.id,
                             status="pending",
                             error_message="",
-                            retries=(job.retries or 0) + 1
+                            retries=current_retries + 1,
                         )
-                        logger.info("Successfully reset job %s for retry (attempt %d)", job.id, (job.retries or 0) + 1)
+                        logger.info("Successfully reset job %s for retry", job.id)
                     except Exception as exc:
                         logger.error("Failed to reset job %s for retry: %s", job.id, exc)
 
@@ -98,40 +107,42 @@ class HarvesterService:
 
         for nb in notebooks:
             logger.info("Processing notebook %s: %s", nb.id, nb.title)
+            is_retry = False
             if nb.id in known_ids:
-                # Check if this known notebook actually has a completed job
                 existing_job = repo.get_job_by_notebook_id(user, nb.id)
                 if existing_job:
-                    if existing_job.status != "done":
-                        # Check if this failed job now has audio available in NotebookLM
-                        try:
-                            audio_list = await client._client.artifacts.list_audio(nb.id)
-                            if audio_list:
-                                logger.info("Retrying download for failed notebook %s: %s (audio now available)", nb.id, nb.title)
-                                # Don't continue - proceed to download below
-                            else:
-                                logger.info("Skipping known notebook %s: %s (job %s status=%s, no audio)", nb.id, nb.title, existing_job.id, existing_job.status)
-                                continue
-                        except Exception as exc:
-                            logger.warning("Failed to check audio for known notebook %s: %s", nb.id, exc)
+                    if existing_job.status == "done":
+                        continue
+                    # Not done — check if audio is now available
+                    try:
+                        audio_list = await client._client.artifacts.list_audio(nb.id)
+                        if audio_list:
+                            logger.info("Retrying download for failed notebook %s: %s (audio now available)", nb.id, nb.title)
+                            is_retry = True
+                            # fall through to download
+                        else:
+                            logger.info("Skipping known notebook %s: %s (job %s status=%s, no audio)", nb.id, nb.title, existing_job.id, existing_job.status)
                             continue
-                    # Don't log for successful 'done' jobs to reduce noise
+                    except Exception as exc:
+                        logger.warning("Failed to check audio for known notebook %s: %s", nb.id, exc)
+                        continue
                 else:
                     logger.warning("Known notebook %s: %s has no job record - possible orphaned entry", nb.id, nb.title)
-                continue
-            try:
-                audio_list = await client._client.artifacts.list_audio(nb.id)
-                if not audio_list:
-                    logger.info("Skipping notebook %s: no audio artifacts found", nb.id)
                     continue
-            except Exception as exc:
-                logger.warning("Failed to get audio list for notebook %s: %s", nb.id, exc)
-                continue
+            else:
+                try:
+                    audio_list = await client._client.artifacts.list_audio(nb.id)
+                    if not audio_list:
+                        logger.info("Skipping notebook %s: no audio artifacts found", nb.id)
+                        continue
+                except Exception as exc:
+                    logger.warning("Failed to get audio list for notebook %s: %s", nb.id, exc)
+                    continue
 
             artifact_id = audio_list[0].id
             artifact = ArtifactModel(id=artifact_id, notebook_id=nb.id)
-            logger.info("%s audio artifact %s for notebook %s: %s", 
-                       "Found" if not is_known_with_audio else "Retrying", 
+            logger.info("%s audio artifact %s for notebook %s: %s",
+                       "Retrying" if is_retry else "Found",
                        artifact_id, nb.id, nb.title)
             try:
                 logger.info("Starting download for notebook %s: %s", nb.id, nb.title)

@@ -72,22 +72,33 @@ class TransformerWorker:
         # Check for failed jobs and retry them (one per cycle to respect API limits)
         failed_jobs = repo.get_failed_jobs(user)
         if failed_jobs:
-            # Only retry one failed job per poll cycle to avoid API rate limiting
             failed_job = failed_jobs[0]
-            logger.info("Retrying failed transformer job %s: %s (feed=%s) - will attempt next failed job in next poll cycle", 
-                      failed_job.id, failed_job.title, failed_job.feed_name)
-            try:
-                repo.update_job(
-                    user, 
-                    failed_job.id, 
-                    status="pending",
-                    error_message="",
-                    retries=(failed_job.retries or 0) + 1
+            current_retries = failed_job.retries or 0
+            max_retries = failed_job.max_retries or 1
+            if current_retries >= max_retries:
+                logger.warning(
+                    "Job %s exhausted retries (%d/%d), leaving as failed: %s",
+                    failed_job.id, current_retries, max_retries, failed_job.title,
                 )
-                logger.info("Successfully reset job %s for retry (attempt %d) - next retry in ~2h", 
-                          failed_job.id, (failed_job.retries or 0) + 1)
-            except Exception as exc:
-                logger.error("Failed to reset job %s for retry: %s", failed_job.id, exc)
+            else:
+                logger.info(
+                    "Retrying failed transformer job %s: %s (feed=%s, attempt %d/%d)",
+                    failed_job.id, failed_job.title, failed_job.feed_name,
+                    current_retries + 1, max_retries,
+                )
+                try:
+                    repo.update_job(
+                        user,
+                        failed_job.id,
+                        status="pending",
+                        error_message="",
+                        retries=current_retries + 1,
+                    )
+                    logger.info("Successfully reset job %s for retry", failed_job.id)
+                except Exception as exc:
+                    logger.error("Failed to reset job %s for retry: %s", failed_job.id, exc)
+            # Don't process in this same cycle — pick up on next poll
+            return
 
         job = await self._job_service.get_next_pending(user)
         if not job:

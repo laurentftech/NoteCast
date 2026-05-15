@@ -34,3 +34,5 @@ ARCHITECTURE.md
 *.pyd
 *.egg-info/
 .playwright-mcp/
+.openlore/
+.openlore/decisions/
