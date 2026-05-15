@@ -260,6 +260,13 @@ class HarvesterService:
                 None
             )
             if not original:
+                # Fallback: different notebook_id from a prior attempt — match by title
+                all_failed = repo.get_failed_jobs(user)
+                original = next(
+                    (j for j in all_failed if j.title == job.title and j.feed_name != "imported"),
+                    None
+                )
+            if not original:
                 continue
             old_path = self._storage.episode_path(user, "imported", job.artifact_id)
             new_path = self._storage.episode_path(user, original.feed_name, job.artifact_id)
