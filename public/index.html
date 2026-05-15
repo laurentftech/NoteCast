@@ -2064,7 +2064,7 @@
       <div class="feed-cfg-row"><label>Language</label>
         <input class="feed-cfg-input" data-field="language" value="${escapeHtml(feed.language || 'en')}" placeholder="en"></div>
       <div class="feed-cfg-row"><label>Max episodes</label>
-        <input class="feed-cfg-input" type="number" min="1" max="20" data-field="max_episodes" value="${feed.max_episodes || 1}"></div>
+        <input class="feed-cfg-input" type="number" min="1" max="20" data-field="max_episodes" value="${feed.max_episodes ?? 1}"></div>
       <div class="feed-cfg-row"><label>Instructions</label>
         <textarea class="feed-cfg-input" data-field="instructions" placeholder="Optional prompt...">${escapeHtml(feed.instructions || '')}</textarea></div>`;
     return card;
@@ -2121,9 +2121,11 @@
   document.getElementById('feedCfgSaveBtn').addEventListener('click', async () => {
     _collectFeedCfg();
     const result = document.getElementById('feedCfgResult');
-    const invalid = _feedCfgData.find(f => !f.name.trim() || !f.url.trim() || !f.url.startsWith('http'));
+    const missingName = _feedCfgData.find(f => !f.name.trim());
+    const badUrl = _feedCfgData.find(f => !f.url.trim() || !f.url.startsWith('http'));
+    const invalid = missingName || badUrl;
     if (invalid) {
-      result.textContent = 'Each feed needs a name and URL.';
+      result.textContent = missingName ? 'Each feed needs a name.' : 'Each feed needs a valid URL (must start with http).';
       result.className = 'upload-result err';
       result.style.display = 'block';
       return;

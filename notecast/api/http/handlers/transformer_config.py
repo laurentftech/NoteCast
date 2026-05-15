@@ -11,7 +11,11 @@ async def handle_get_transformer_config(request: web.Request) -> web.Response:
     user = request.get("user")
     if not user:
         return web.json_response({"error": "Unauthorized"}, status=401)
-    feeds = load_user_config(user)
+    try:
+        feeds = load_user_config(user)
+    except Exception as exc:
+        logger.error("[%s] Failed to load transformer config: %s", user.name, exc)
+        return web.json_response({"error": f"Failed to load: {exc}"}, status=500)
     return web.json_response([f.model_dump() for f in feeds])
 
 
