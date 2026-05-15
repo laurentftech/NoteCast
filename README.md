@@ -43,12 +43,11 @@ NoteCast supports two modes:
 curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/docker-compose.yml
 curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/Caddyfile
 curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/.env.example
-mkdir -p auth data public/episodes config
-curl -o public/index.html https://raw.githubusercontent.com/laurentftech/NoteCast/main/public/index.html
+mkdir -p auth data public config
 curl -o config/transformer.yaml https://raw.githubusercontent.com/laurentftech/NoteCast/main/config/example/transformer.yaml
 ```
 
-The image (`ghcr.io/laurentftech/notecast:latest`) is pulled automatically.
+The image (`ghcr.io/laurentftech/notecast:latest`) is pulled automatically. The web UI (`index.html`, `app.js`) is baked into the image — no separate file download needed.
 
 > **Build from source:** clone the repo and add a `docker-compose.override.yml`:
 > ```yaml
@@ -75,7 +74,7 @@ CADDY_DOMAIN=podcast.yourdomain.com       # same host, no protocol
 
 **Option A — Admin UI (recommended)**
 
-Open the admin panel (⚙ icon) → expand **Feed Configuration** → add or edit feeds → **Save configuration**. Changes are written immediately to `config/transformer.yaml`.
+Open the admin panel (⚙ icon) → expand **Feeds** → click **Edit** on a card then the lock icon to unlock it → edit fields → **Save**. Or click **+ Add feed** for a new entry. Changes are written immediately to `config/transformer.yaml`.
 
 YouTube playlist or channel URLs are auto-converted to RSS feed URLs on paste.
 
@@ -173,7 +172,7 @@ docker compose logs -f notecast-bridge
 
 ### 7. Subscribe
 
-Open the web UI at your domain, click the settings icon, and copy the RSS URL from the **Published Feeds** section. Paste into Overcast, Pocket Casts, Apple Podcasts, or any RSS-capable app.
+Open the web UI at your domain, click the settings icon, expand **Feeds**, and click **RSS** on a feed card to copy its URL. Paste into Overcast, Pocket Casts, Apple Podcasts, or any RSS-capable app.
 
 ### 8. Manage episodes
 
@@ -214,7 +213,7 @@ GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 
 ### 3. Per-user RSS feeds (optional)
 
-Each user can manage their own feeds from the admin panel (**Feed Configuration** accordion). Changes are saved to `config/{name}/transformer.yaml` automatically.
+Each user can manage their own feeds from the admin panel (**Feeds** accordion). Changes are saved to `config/{name}/transformer.yaml` automatically.
 
 Alternatively, place a `transformer.yaml` under `config/{name}/` manually. Falls back to `config/transformer.yaml` if absent.
 
@@ -240,7 +239,7 @@ Or each user can upload via the web UI: sign in with Google, open the admin pane
 
 ### 5. Subscribe
 
-Each user's private feed URLs appear in the **Published Feeds** section of the admin panel. The token is unguessable and stable — podcast apps use this URL directly, no OAuth needed.
+Each user's private feed URLs appear in the **Feeds** section of the admin panel (expand the accordion → **RSS** button on each card). The token is unguessable and stable — podcast apps use this URL directly, no OAuth needed.
 
 ---
 
@@ -411,7 +410,7 @@ docker compose pull
 docker compose up -d
 ```
 
-Episode files and credentials are untouched. `index.html` is baked into the image — no separate file download needed.
+Episode files and credentials are untouched. The web UI is baked into the image — no separate file download needed.
 
 **On Synology (Container Manager UI)**
 1. *Registry* → search `ghcr.io/laurentftech/notecast` → Download latest
