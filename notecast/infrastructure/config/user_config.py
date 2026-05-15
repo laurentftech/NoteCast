@@ -48,3 +48,18 @@ def _warn_bad_url(feed: Feed) -> None:
             "Feed '%s': single YouTube video URL — use a channel or playlist feed URL instead",
             feed.name,
         )
+
+
+def save_user_config(user, feeds) -> None:
+    """Write feed list to {config_dir}/{user.name}/transformer.yaml."""
+    user_path = global_settings.config_dir / user.name / "transformer.yaml"
+    user_path.parent.mkdir(parents=True, exist_ok=True)
+    data = {
+        "feeds": [
+            {k: v for k, v in f.model_dump().items()
+             if v not in ("", 0) or k in ("name", "url")}
+            for f in feeds
+        ]
+    }
+    user_path.write_text(yaml.dump(data, allow_unicode=True, sort_keys=False))
+    logger.info("[%s] Saved %d feed(s) to %s", user.name, len(feeds), user_path)

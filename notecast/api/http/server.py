@@ -16,6 +16,7 @@ from notecast.api.http.handlers.feeds import handle_feeds
 from notecast.api.http.handlers.health import handle_health
 from notecast.api.http.handlers.poll import handle_poll
 from notecast.api.http.handlers.status import handle_status
+from notecast.api.http.handlers.transformer_config import handle_get_transformer_config, handle_put_transformer_config
 from notecast.api.http.handlers.delete_episode import handle_delete_episode
 from notecast.api.http.handlers.upload import handle_browser_cookies, handle_upload
 from notecast.api.http.handlers.webhook import handle_webhook, handle_webhook_test
@@ -78,6 +79,8 @@ def create_app(
     app.router.add_post("/api/auth/browser-cookies", handle_browser_cookies)
     app.router.add_post("/api/webhook", handle_webhook)
     app.router.add_post("/api/webhook/test", handle_webhook_test)
+    app.router.add_get("/api/transformer-config", handle_get_transformer_config)
+    app.router.add_put("/api/transformer-config", handle_put_transformer_config)
 
     # Static files (index.html + audio episodes)
     static_path = Path(settings.public_dir)

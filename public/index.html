@@ -725,6 +725,62 @@
       background: rgba(239, 68, 68, .10);
     }
 
+    .feed-cfg-card {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 10px;
+    }
+    .feed-cfg-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .feed-cfg-row:last-child { margin-bottom: 0; }
+    .feed-cfg-row label {
+      font-size: 12px;
+      color: var(--text-2);
+      width: 90px;
+      flex-shrink: 0;
+    }
+    .feed-cfg-input, .feed-cfg-select {
+      flex: 1;
+      font-size: 13px;
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      color: var(--text-1);
+      outline: none;
+      font-family: inherit;
+    }
+    .feed-cfg-input:focus, .feed-cfg-select:focus { border-color: var(--accent); }
+    textarea.feed-cfg-input { resize: vertical; min-height: 54px; }
+    .feed-cfg-del {
+      background: rgba(220, 38, 38, .12);
+      color: #dc2626;
+      border: none;
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .feed-cfg-del:hover { background: rgba(220, 38, 38, .22); }
+    .feed-cfg-card-hdr {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .feed-cfg-card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-1);
+    }
+
     .rss-row {
       display: flex; gap: 8px; align-items: center;
       background: var(--surface-2);
@@ -1097,6 +1153,25 @@
           </div>
           <div class="upload-result" id="browserCookiesResult"></div>
         </div>
+      </div>
+    </div>
+
+    <div style="margin-top:22px">
+      <div class="accordion-hdr" id="feedCfgAccordion">
+        <div class="section-label">Feed Configuration</div>
+        <span class="accordion-chev" id="feedCfgChev">▾</span>
+      </div>
+      <div class="accordion-body" id="feedCfgBody" style="display:none;">
+        <div id="feedCfgList"></div>
+        <button class="btn" id="feedCfgAddBtn"
+                style="width:100%;justify-content:center;margin-top:12px;padding:9px;">
+          + Add feed
+        </button>
+        <button class="btn btn-accent" id="feedCfgSaveBtn"
+                style="width:100%;justify-content:center;margin-top:8px;padding:10px;">
+          Save configuration
+        </button>
+        <div class="upload-result" id="feedCfgResult"></div>
       </div>
     </div>
 
@@ -1517,6 +1592,7 @@
     document.body.style.overflow = 'hidden';
     loadStatus();
     loadFeeds();
+    loadFeedCfg();
   }
   function closeAdmin() {
     overlay.classList.remove('open');
@@ -1546,6 +1622,7 @@
   }
   makeAccordion('feedsAccordion', 'feedsBody', 'feedsChev');
   makeAccordion('sessionAccordion', 'sessionBody', 'sessionChev');
+  makeAccordion('feedCfgAccordion', 'feedCfgBody', 'feedCfgChev');
 
   document.getElementById('renewCredsToggle').addEventListener('click', () => {
     const body = document.getElementById('renewCredsBody');
@@ -1959,6 +2036,112 @@
     result.style.display = 'block';
     btn.textContent = 'Import from browser';
     btn.disabled = false;
+  });
+
+  // ── Feed Configuration ────────────────────────────
+  let _feedCfgData = [];
+
+  function _makeFeedCard(feed, idx) {
+    const card = document.createElement('div');
+    card.className = 'feed-cfg-card';
+    card.dataset.idx = idx;
+    card.innerHTML = `
+      <div class="feed-cfg-card-hdr">
+        <span class="feed-cfg-card-title">${escapeHtml(feed.name || 'New feed')}</span>
+        <button class="feed-cfg-del" data-idx="${idx}">Remove</button>
+      </div>
+      <div class="feed-cfg-row"><label>Name *</label>
+        <input class="feed-cfg-input" data-field="name" value="${escapeHtml(feed.name || '')}" placeholder="my-feed"></div>
+      <div class="feed-cfg-row"><label>URL *</label>
+        <input class="feed-cfg-input" data-field="url" value="${escapeHtml(feed.url || '')}" placeholder="https://..."></div>
+      <div class="feed-cfg-row"><label>Title</label>
+        <input class="feed-cfg-input" data-field="title" value="${escapeHtml(feed.title || '')}" placeholder="Feed title"></div>
+      <div class="feed-cfg-row"><label>Style</label>
+        <select class="feed-cfg-select" data-field="style">
+          <option value="deep-dive"${feed.style === 'deep-dive' ? ' selected' : ''}>Deep dive</option>
+          <option value="briefing"${feed.style === 'briefing' ? ' selected' : ''}>Briefing</option>
+        </select></div>
+      <div class="feed-cfg-row"><label>Language</label>
+        <input class="feed-cfg-input" data-field="language" value="${escapeHtml(feed.language || 'en')}" placeholder="en"></div>
+      <div class="feed-cfg-row"><label>Max episodes</label>
+        <input class="feed-cfg-input" type="number" min="1" max="20" data-field="max_episodes" value="${feed.max_episodes || 1}"></div>
+      <div class="feed-cfg-row"><label>Instructions</label>
+        <textarea class="feed-cfg-input" data-field="instructions" placeholder="Optional prompt...">${escapeHtml(feed.instructions || '')}</textarea></div>`;
+    return card;
+  }
+
+  function _renderFeedCfg() {
+    const list = document.getElementById('feedCfgList');
+    list.innerHTML = '';
+    _feedCfgData.forEach((feed, idx) => {
+      const card = _makeFeedCard(feed, idx);
+      card.querySelector('.feed-cfg-del').addEventListener('click', () => {
+        _collectFeedCfg();
+        _feedCfgData.splice(idx, 1);
+        _renderFeedCfg();
+      });
+      list.appendChild(card);
+    });
+  }
+
+  function _collectFeedCfg() {
+    const cards = document.querySelectorAll('#feedCfgList .feed-cfg-card');
+    _feedCfgData = Array.from(cards).map(card => {
+      const get = f => card.querySelector(`[data-field="${f}"]`)?.value ?? '';
+      return {
+        name: get('name'),
+        url: get('url'),
+        title: get('title'),
+        style: get('style') || 'deep-dive',
+        language: get('language') || 'en',
+        max_episodes: parseInt(get('max_episodes'), 10) || 1,
+        instructions: get('instructions'),
+      };
+    });
+  }
+
+  async function loadFeedCfg() {
+    try {
+      const data = await authFetch('/api/transformer-config').then(r => r.json());
+      _feedCfgData = Array.isArray(data) ? data : [];
+    } catch {
+      _feedCfgData = [];
+    }
+    _renderFeedCfg();
+  }
+
+  document.getElementById('feedCfgAddBtn').addEventListener('click', () => {
+    _collectFeedCfg();
+    _feedCfgData.push({ name: '', url: '', title: '', style: 'deep-dive', language: 'en', max_episodes: 1, instructions: '' });
+    _renderFeedCfg();
+    document.querySelector('#feedCfgList .feed-cfg-card:last-child')?.scrollIntoView({ behavior: 'smooth' });
+  });
+
+  document.getElementById('feedCfgSaveBtn').addEventListener('click', async () => {
+    _collectFeedCfg();
+    const result = document.getElementById('feedCfgResult');
+    const invalid = _feedCfgData.find(f => !f.name.trim() || !f.url.trim());
+    if (invalid) {
+      result.textContent = 'Each feed needs a name and URL.';
+      result.className = 'upload-result err';
+      result.style.display = 'block';
+      return;
+    }
+    try {
+      const res = await authFetch('/api/transformer-config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(_feedCfgData),
+      });
+      const json = await res.json();
+      result.textContent = json.ok ? '✓ Configuration saved' : (json.error || 'Save failed');
+      result.className = 'upload-result ' + (json.ok ? 'ok' : 'err');
+    } catch {
+      result.textContent = 'Save failed.';
+      result.className = 'upload-result err';
+    }
+    result.style.display = 'block';
+    setTimeout(() => { result.style.display = 'none'; }, 4000);
   });
 
   // ── Init ──────────────────────────────────────────
