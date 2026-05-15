@@ -2111,7 +2111,9 @@
       <div class="feed-cfg-row"><label>Style</label>
         <select class="feed-cfg-select" data-field="style">
           <option value="deep-dive"${feed.style === 'deep-dive' ? ' selected' : ''}>Deep dive</option>
-          <option value="briefing"${feed.style === 'briefing' ? ' selected' : ''}>Briefing</option>
+          <option value="brief"${feed.style === 'brief' ? ' selected' : ''}>Brief</option>
+          <option value="critique"${feed.style === 'critique' ? ' selected' : ''}>Critique</option>
+          <option value="debate"${feed.style === 'debate' ? ' selected' : ''}>Debate</option>
         </select></div>
       <div class="feed-cfg-row"><label>Language</label>
         <input class="feed-cfg-input" data-field="language" value="${escapeHtml(feed.language || 'en')}" placeholder="en"></div>

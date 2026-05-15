@@ -86,7 +86,7 @@ feeds:
   # RSS/Atom feed (podcast, newsletter, blog)
   - name: my-podcast
     url: "https://example.com/feed/podcast.rss"
-    style: deep-dive        # deep-dive | briefing
+    style: deep-dive        # deep-dive | brief | critique | debate
     language: en            # language code passed to NotebookLM (e.g. fr, de, es, ja)
     max_episodes: 1
     # instructions: "Present the episode as a lively French podcast for tech enthusiasts."
