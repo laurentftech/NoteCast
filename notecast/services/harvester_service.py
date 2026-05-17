@@ -71,14 +71,13 @@ class HarvesterService:
                 if is_quota:
                     now = datetime.now(timezone.utc)
                     until = self._quota_until.get(user.name)
-                    if until is not None and now >= until:
-                        # Backoff expired — clear it, fall through to retry
-                        del self._quota_until[user.name]
-                    else:
-                        if until is None:
-                            self._quota_until[user.name] = now + timedelta(seconds=QUOTA_BACKOFF_SECONDS)
-                            logger.warning("Job %s: quota limit hit, suppressing retries for 30 min", job.id)
+                    if until is None:
+                        self._quota_until[user.name] = now + timedelta(seconds=QUOTA_BACKOFF_SECONDS)
+                        logger.warning("Job %s: quota hit, suppressing retries for 30 min", job.id)
                         continue
+                    if now < until:
+                        continue
+                    del self._quota_until[user.name]  # expired — fall through to retry
                 if current_retries >= max_retries:
                     logger.warning("Job %s exhausted retries (%d/%d): %s", job.id, current_retries, max_retries, job.title)
                     continue
