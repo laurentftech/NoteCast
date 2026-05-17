@@ -47,6 +47,7 @@ async def main():
     nb_client = NotebookLMClientWrapper(
         max_retries=settings.max_retries,
         timeout=settings.generation_timeout,
+        keepalive=settings.keepalive_interval,
     )
     webhook = WebhookClient(
         webhook_url=settings.webhook_url,

@@ -17,23 +17,25 @@ class NotebookLMClientWrapper:
         auth_file: Path | None = None,
         max_retries: int = 3,
         timeout: int = 2700,
+        keepalive: int = 300,
     ):
         self._auth_file = auth_file
         self._max_retries = max_retries
         self._timeout = timeout
+        self._keepalive = keepalive
         self._client: Any = None
         # notebook_id -> task_id from the most recent generate_audio call
         self._pending_tasks: dict[str, str] = {}
 
     async def session(self, user: User) -> "NotebookLMClientWrapper":
         """Return a user-scoped wrapper (used as async context manager)."""
-        return NotebookLMClientWrapper(user.auth_file, self._max_retries, self._timeout)
+        return NotebookLMClientWrapper(user.auth_file, self._max_retries, self._timeout, self._keepalive)
 
     async def __aenter__(self) -> "NotebookLMClientWrapper":
         from notebooklm import NotebookLMClient
 
         path = str(self._auth_file) if self._auth_file else None
-        self._client = await NotebookLMClient.from_storage(path, timeout=30.0)
+        self._client = await NotebookLMClient.from_storage(path, timeout=30.0, keepalive=self._keepalive)
         await self._client.__aenter__()
         return self
 
@@ -123,7 +125,7 @@ class NotebookLMClientWrapper:
         if status.is_failed:
             raise NotebookLMError(f"Audio generation failed: {status.error}")
 
-        return Artifact(id=status.task_id, notebook_id=notebook_id)
+        return Artifact(id=status.task_id, notebook_id=notebook_id, url=getattr(status, "url", None))
 
     async def download_audio(
         self, notebook_id: str, output_path: str, artifact_id: str | None = None

@@ -85,6 +85,7 @@ class Artifact(BaseModel):
 
     id: str
     notebook_id: str
+    url: str | None = None
     local_path: Path | None = None
     duration: int | None = None
 
