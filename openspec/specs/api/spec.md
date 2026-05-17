@@ -398,3 +398,54 @@ The API SHALL support `POST /api/webhook` to trigger a webhook notification.
 - **GIVEN** A valid event and data
 - **WHEN** POST /api/webhook is called with event and data in request body
 - **THEN** 200 OK with status and message in response body
+
+### Requirement: AddTransformerConfigurationEndpoints
+
+The system SHALL provide endpoints to read and write transformer.yaml configuration via the admin UI.
+
+> Decision recorded: d1c16e7c
+> Date: 2026-05-15
+### Requirement: ServeAppjsFromStaticDirectory
+
+The system SHALL serve the app.js file from the static directory to support client-side JavaScript functionality.
+
+> Decision recorded: f625ac28
+> Date: 2026-05-15
+### Requirement: StaticContentOrganization
+
+The system SHALL serve static content for episodes and feeds from dedicated paths (/episodes and /feed).
+
+> Decision recorded: 407525ab
+> Date: 2026-05-17
+
+## Decisions
+
+### Add Transformer Configuration Endpoints
+
+**Status:** Approved
+**Date:** 2026-05-15
+**ID:** d1c16e7c
+
+To provide a way to read and write transformer.yaml configuration via the admin UI, allowing for dynamic updates to feed configurations without restarting the application.
+
+**Consequences:** This adds new endpoints to the API that will be used by the admin UI to manage feed configurations. The existing requirements for API authentication and feed management are extended to include transformer configuration management.
+
+### Serve app.js from static directory
+
+**Status:** Approved
+**Date:** 2026-05-15
+**ID:** f625ac28
+
+To support client-side JavaScript functionality, the server needs to serve the app.js file along with the index.html file.
+
+**Consequences:** The client-side application can now use JavaScript to enhance user interaction and functionality.
+
+### Static Content Organization
+
+**Status:** Approved
+**Date:** 2026-05-17
+**ID:** 407525ab
+
+To better organize and serve static content for different sections of the application, specifically for episodes and feed-related resources.
+
+**Consequences:** The static content for episodes and feeds will now be served from dedicated paths (/episodes and /feed), which may require updates to any references or links to these resources in the application.

@@ -97,7 +97,8 @@ def create_app(
 
         app.router.add_get("/", serve_index)
         app.router.add_get("/app.js", serve_app_js)
-        app.router.add_static("/", static_path, name="static", follow_symlinks=True)
+        app.router.add_static("/episodes", static_path / "episodes", name="static_episodes", follow_symlinks=True)
+        app.router.add_static("/feed", static_path / "feed", name="static_feed", follow_symlinks=True)
 
     logger.info("HTTP server application created")
     return app
