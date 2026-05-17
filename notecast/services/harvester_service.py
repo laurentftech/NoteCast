@@ -1,6 +1,7 @@
 """Harvester service - recovers stuck generating jobs from NotebookLM."""
 
 import logging
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from notecast.core.interfaces import JobRepository
@@ -12,6 +13,9 @@ from notecast.infrastructure.storage.file_storage import LocalFileStorage
 from notecast.services.feed_service import FeedService
 
 logger = logging.getLogger(__name__)
+
+
+QUOTA_BACKOFF_SECONDS = 1800
 
 
 class HarvesterService:
@@ -32,6 +36,7 @@ class HarvesterService:
         self._feed_service = feed_service
         self._settings = settings
         self._webhook = webhook
+        self._quota_until: dict[str, datetime] = {}
 
     async def harvest_user(self, user: User) -> None:
         """Check for stuck generating jobs and scan for orphaned NotebookLM audio."""
@@ -57,33 +62,27 @@ class HarvesterService:
                         logger.error("Failed to recover job %s: %s", job.id, exc)
                         repo.update_job(user, job.id, status="failed")
 
-            # Check for failed jobs that might need retry
+            # Retry failed jobs with quota detection and backoff
             failed_jobs = repo.get_failed_jobs(user)
-            if failed_jobs:
-                logger.warning("Found %d failed jobs for user %s - attempting to retry", len(failed_jobs), user.name)
-                for job in failed_jobs:
-                    current_retries = job.retries or 0
-                    max_retries = job.max_retries if job.max_retries is not None else 1
-                    if current_retries >= max_retries:
-                        logger.warning(
-                            "Job %s exhausted retries (%d/%d), leaving as failed: %s",
-                            job.id, current_retries, max_retries, job.title,
-                        )
-                        continue
-                    logger.warning("Retrying failed job %s: %s (attempt %d/%d, previous error: %s)",
-                                   job.id, job.title, current_retries + 1, max_retries,
-                                   job.error_message or "unknown error")
-                    try:
-                        repo.update_job(
-                            user,
-                            job.id,
-                            status="pending",
-                            error_message="",
-                            retries=current_retries + 1,
-                        )
-                        logger.info("Successfully reset job %s for retry", job.id)
-                    except Exception as exc:
-                        logger.error("Failed to reset job %s for retry: %s", job.id, exc)
+            for job in failed_jobs:
+                current_retries = job.retries or 0
+                max_retries = job.max_retries if job.max_retries is not None else 3
+                is_quota = bool(job.error_message and "quota" in job.error_message.lower())
+                if is_quota:
+                    now = datetime.now(timezone.utc)
+                    until = self._quota_until.get(user.name)
+                    if until is None or now >= until:
+                        self._quota_until[user.name] = now + timedelta(seconds=QUOTA_BACKOFF_SECONDS)
+                        logger.warning("Job %s: quota limit hit, suppressing retries for 30 min", job.id)
+                    continue
+                if current_retries >= max_retries:
+                    logger.warning("Job %s exhausted retries (%d/%d): %s", job.id, current_retries, max_retries, job.title)
+                    continue
+                logger.info("Retrying job %s (attempt %d/%d): %s", job.id, current_retries + 1, max_retries, job.title)
+                try:
+                    repo.update_job(user, job.id, status="pending", error_message="", retries=current_retries + 1)
+                except Exception as exc:
+                    logger.error("Failed to reset job %s for retry: %s", job.id, exc)
 
             await self.repair_misattributed_podcasts(repo, user)
             await self._scan_orphaned_notebooks(client, repo, user)
