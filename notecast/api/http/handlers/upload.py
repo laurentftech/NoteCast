@@ -19,15 +19,31 @@ async def handle_browser_cookies(request: web.Request) -> web.Response:
         return web.json_response({"error": "Invalid JSON body"}, status=400)
 
     try:
-        from notebooklm import convert_rookiepy_cookies_to_storage_state
+        import rookiepy
+        from notebooklm.auth import convert_rookiepy_cookies_to_storage_state
     except ImportError:
         return web.json_response(
             {"error": 'rookiepy not installed — add notebooklm-py[cookies] to dependencies'},
             status=400,
         )
 
+    _BROWSER_FN = {
+        "chrome": rookiepy.chrome,
+        "chromium": rookiepy.chromium,
+        "firefox": rookiepy.firefox,
+        "brave": rookiepy.brave,
+        "edge": rookiepy.edge,
+        "safari": rookiepy.safari,
+        "opera": rookiepy.opera,
+        "vivaldi": rookiepy.vivaldi,
+    }
+    browser_fn = _BROWSER_FN.get(browser)
+    if not browser_fn:
+        return web.json_response({"error": f"Unsupported browser: {browser}"}, status=400)
+
     try:
-        storage_state = convert_rookiepy_cookies_to_storage_state(browser)
+        raw_cookies = browser_fn(domains=[".google.com", "google.com", ".notebooklm.google.com"])
+        storage_state = convert_rookiepy_cookies_to_storage_state(raw_cookies)
         user.auth_file.parent.mkdir(parents=True, exist_ok=True)
         user.auth_file.write_text(json.dumps(storage_state))
         logger.info("Credentials updated for user %s via %s browser cookies", user.name, browser)

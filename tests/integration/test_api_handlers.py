@@ -183,7 +183,7 @@ async def test_browser_cookies_no_token_returns_401(auth_client):
 
 
 async def test_browser_cookies_rookiepy_not_installed_returns_400(auth_client):
-    with patch.dict("sys.modules", {"notebooklm": None}):
+    with patch.dict("sys.modules", {"rookiepy": None}):
         resp = await auth_client.post(
             "/api/auth/browser-cookies",
             json={"browser": "chrome"},
@@ -201,9 +201,11 @@ async def test_browser_cookies_success(aiohttp_client, tmp_path):
     patched_user = user.model_copy(update={"auth_file": auth_file})
     app["user_service"].get_all = AsyncMock(return_value=[patched_user])
 
-    fake_module = MagicMock()
-    fake_module.convert_rookiepy_cookies_to_storage_state.return_value = fake_state
-    with patch.dict(sys.modules, {"notebooklm": fake_module}):
+    fake_rookiepy = MagicMock()
+    fake_rookiepy.chrome.return_value = [{"name": "SID", "value": "abc", "domain": ".google.com"}]
+    fake_auth = MagicMock()
+    fake_auth.convert_rookiepy_cookies_to_storage_state.return_value = fake_state
+    with patch.dict(sys.modules, {"rookiepy": fake_rookiepy, "notebooklm.auth": fake_auth}):
         client = await aiohttp_client(app)
         resp = await client.post("/api/auth/browser-cookies", json={"browser": "chrome"})
 
