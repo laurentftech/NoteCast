@@ -1,6 +1,7 @@
 """Transformer worker - processes pending jobs."""
 import asyncio
 import logging
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from notecast.core.models import User
@@ -10,6 +11,8 @@ from notecast.infrastructure.config.settings import Settings
 
 
 logger = logging.getLogger(__name__)
+
+QUOTA_BACKOFF_SECONDS = 1800
 
 
 class TransformerWorker:
@@ -27,6 +30,7 @@ class TransformerWorker:
         self._settings = settings
         self._poll_interval = poll_interval or 10  # seconds between job queue checks
         self._running = False
+        self._quota_until: dict[str, datetime] = {}  # user_id -> backoff expiry
 
     async def run(self) -> None:
         """Run the worker loop.
@@ -65,6 +69,10 @@ class TransformerWorker:
 
     async def _process_user_jobs(self, user: User) -> None:
         """Submit one pending job only when no generation is already in flight."""
+        until = self._quota_until.get(user.name)
+        if until and datetime.now(timezone.utc) < until:
+            return  # quota backoff still active for this user
+
         repo = self._job_service._repo_factory(user)
         if repo.get_generating_jobs(user):
             return  # wait for in-flight generation to complete before submitting next
@@ -79,11 +87,15 @@ class TransformerWorker:
             is_quota = bool(failed_job.error_message and "quota" in failed_job.error_message.lower())
 
             if is_quota:
-                logger.warning(
-                    "Job %s failed due to quota limits; backing off 30 min before next attempt",
-                    failed_job.id,
-                )
-                await asyncio.sleep(1800)
+                user_id = user.name
+                now = datetime.now(timezone.utc)
+                until = self._quota_until.get(user_id)
+                if until is None or now >= until:
+                    self._quota_until[user_id] = now + timedelta(seconds=QUOTA_BACKOFF_SECONDS)
+                    logger.warning(
+                        "Job %s failed due to quota limits; suppressing retries for 30 min",
+                        failed_job.id,
+                    )
                 # fall through — don't block pending job submission
             elif current_retries >= max_retries:
                 logger.warning(
