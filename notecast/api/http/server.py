@@ -95,8 +95,14 @@ def create_app(
         async def serve_app_js(_request: web.Request) -> web.StreamResponse:
             return web.FileResponse(app_js, headers={"Cache-Control": "no-cache"})
 
+        async def serve_no_content(_request: web.Request) -> web.Response:
+            return web.Response(status=204)
+
         app.router.add_get("/", serve_index)
         app.router.add_get("/app.js", serve_app_js)
+        app.router.add_get("/favicon.ico", serve_no_content)
+        app.router.add_get("/apple-touch-icon.png", serve_no_content)
+        app.router.add_get("/apple-touch-icon-precomposed.png", serve_no_content)
         app.router.add_static("/episodes", static_path / "episodes", name="static_episodes", follow_symlinks=True)
         app.router.add_static("/feed", static_path / "feed", name="static_feed", follow_symlinks=True)
 

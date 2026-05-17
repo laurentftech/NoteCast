@@ -59,8 +59,9 @@ async def error_middleware(
         response = await handler(request)
         return response
     except web.HTTPException as ex:
-        log = logger.warning if ex.status < 500 else logger.error
-        log("HTTP %d %s: %s %s", ex.status, ex.reason, request.method, request.path)
+        if ex.status >= 500 or request.path.startswith("/api/"):
+            log = logger.error if ex.status >= 500 else logger.warning
+            log("HTTP %d %s: %s %s", ex.status, ex.reason, request.method, request.path)
         return web.json_response({"error": ex.reason}, status=ex.status)
     except Exception as ex:
         logger.exception("Unhandled exception in request handler")
