@@ -27,17 +27,10 @@ async def handle_browser_cookies(request: web.Request) -> web.Response:
             status=400,
         )
 
-    _BROWSER_FN = {
-        "chrome": rookiepy.chrome,
-        "chromium": rookiepy.chromium,
-        "firefox": rookiepy.firefox,
-        "brave": rookiepy.brave,
-        "edge": rookiepy.edge,
-        "safari": rookiepy.safari,
-        "opera": rookiepy.opera,
-        "vivaldi": rookiepy.vivaldi,
-    }
-    browser_fn = _BROWSER_FN.get(browser)
+    _BROWSER_NAMES = {"chrome", "chromium", "firefox", "brave", "edge", "safari", "opera", "vivaldi"}
+    if browser not in _BROWSER_NAMES:
+        return web.json_response({"error": f"Unsupported browser: {browser}"}, status=400)
+    browser_fn = getattr(rookiepy, browser, None)
     if not browser_fn:
         return web.json_response({"error": f"Unsupported browser: {browser}"}, status=400)
 
