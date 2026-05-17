@@ -1,5 +1,6 @@
 """Poller service - polls feeds and creates jobs."""
 import logging
+from datetime import datetime
 from typing import Callable
 
 from notecast.infrastructure.config.settings import Settings
@@ -60,7 +61,8 @@ class PollerService:
                 
                 # Fetch episodes from feed URL
                 feed_title, episodes = fetch_episodes(feed.url)
-                
+                episodes.sort(key=lambda e: e.published_at or datetime.min, reverse=True)
+
                 # Use configured title or fetched title
                 feed_title = feed.title or feed_title or feed.name
                 style = feed.style or default_style

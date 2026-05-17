@@ -1,4 +1,6 @@
 """Feed parser wrapper for RSS/Atom feeds."""
+import time
+from datetime import datetime, timezone
 from typing import Any, Tuple
 
 import feedparser
@@ -38,6 +40,10 @@ def fetch_episodes(url: str) -> Tuple[str, list[Episode]]:
         episode_url = audio_url or article_url
         if not episode_url:
             continue
+        published_at: datetime | None = None
+        pt = entry.get("published_parsed") or entry.get("updated_parsed")
+        if pt:
+            published_at = datetime.fromtimestamp(time.mktime(pt), tz=timezone.utc)
         episode = Episode(
             url=episode_url,
             source_url=article_url,
@@ -45,6 +51,7 @@ def fetch_episodes(url: str) -> Tuple[str, list[Episode]]:
             feed_name="",
             feed_title=feed_title,
             style="deep-dive",
+            published_at=published_at,
         )
         episodes.append(episode)
 

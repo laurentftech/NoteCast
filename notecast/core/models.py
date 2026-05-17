@@ -77,6 +77,7 @@ class Episode(BaseModel):
     style: str
     instructions: str = ""
     language: str = "en"
+    published_at: datetime | None = None
 
 
 class Artifact(BaseModel):
