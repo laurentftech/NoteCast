@@ -48,7 +48,7 @@ class Job(BaseModel):
     artifact_id: str | None = None
     duration: int | None = None
     retries: int = 0
-    max_retries: int = 1
+    max_retries: int = 3
     error_message: str | None = None
     created_at: datetime
     updated_at: datetime

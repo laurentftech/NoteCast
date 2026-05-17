@@ -74,12 +74,23 @@ class TransformerWorker:
         if failed_jobs:
             failed_job = failed_jobs[0]
             current_retries = failed_job.retries or 0
-            max_retries = failed_job.max_retries if failed_job.max_retries is not None else 1
-            if current_retries >= max_retries:
+            max_retries = failed_job.max_retries if failed_job.max_retries is not None else 3
+
+            is_quota = bool(failed_job.error_message and "quota" in failed_job.error_message.lower())
+
+            if is_quota:
+                logger.warning(
+                    "Job %s failed due to quota limits; backing off 30 min before next attempt",
+                    failed_job.id,
+                )
+                await asyncio.sleep(1800)
+                # fall through — don't block pending job submission
+            elif current_retries >= max_retries:
                 logger.warning(
                     "Job %s exhausted retries (%d/%d), leaving as failed: %s",
                     failed_job.id, current_retries, max_retries, failed_job.title,
                 )
+                # fall through — don't block pending job submission
             else:
                 logger.info(
                     "Retrying failed transformer job %s: %s (feed=%s, attempt %d/%d)",
@@ -95,6 +106,9 @@ class TransformerWorker:
                         retries=current_retries + 1,
                     )
                     logger.info("Successfully reset job %s for retry", failed_job.id)
+                    backoff_seconds = 2 ** current_retries
+                    logger.info("Backoff %ds before next retry for job %s", backoff_seconds, failed_job.id)
+                    await asyncio.sleep(backoff_seconds)
                 except Exception as exc:
                     logger.error("Failed to reset job %s for retry: %s", failed_job.id, exc)
                 # Don't process in this same cycle — pick up on next poll
