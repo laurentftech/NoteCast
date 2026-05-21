@@ -76,7 +76,7 @@ class PollerService:
                 for episode in episodes:
                     if queued_this_feed >= feed.max_episodes:
                         break
-                    if not repo.episode_seen(user, episode.url):
+                    if not repo.episode_seen(user, episode.url) and not repo.episode_seen_by_title(user, episode.title):
                         repo.create_job(user, Episode(
                             url=episode.url,
                             title=episode.title,
