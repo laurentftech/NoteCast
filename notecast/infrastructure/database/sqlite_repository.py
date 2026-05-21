@@ -151,14 +151,6 @@ class SQLiteJobRepository(JobRepository):
             ).fetchone()
         return row is not None
 
-    def episode_seen_by_title(self, user: User, title: str) -> bool:
-        with self._conn() as conn:
-            row = conn.execute(
-                "SELECT 1 FROM jobs WHERE user_name=? AND title=? AND status != 'deleted'",
-                (user.name, title)
-            ).fetchone()
-        return row is not None
-
     def get_queue_counts(self, user: User) -> dict:
         with self._conn() as conn:
             rows = conn.execute(

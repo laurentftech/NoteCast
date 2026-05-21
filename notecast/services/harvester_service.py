@@ -90,6 +90,46 @@ class HarvesterService:
             await self.repair_misattributed_podcasts(repo, user)
             await self._scan_orphaned_notebooks(client, repo, user)
 
+    def _build_feed_title_map(self, user: User) -> dict:
+        """Build title → feed info mapping from all configured feeds.
+
+        Returns dict keyed by episode title with values
+        (feed_name, feed_title, episode_url, style, instructions, language).
+        """
+        from notecast.infrastructure.config.user_config import load_user_config
+        from notecast.infrastructure.external.feed_parser import fetch_episodes
+
+        mapping: dict = {}
+        try:
+            feeds = load_user_config(user)
+        except Exception as exc:
+            logger.warning("[%s] Could not load feed config for title mapping: %s", user.name, exc)
+            return mapping
+
+        nb_cfg: dict = {}
+        default_style = nb_cfg.get("default_style", "deep-dive")
+
+        for feed in feeds:
+            try:
+                feed_title_str, episodes = fetch_episodes(feed.url)
+                feed_title_str = feed.title or feed_title_str or feed.name
+                style = feed.style or default_style
+                for ep in episodes:
+                    if ep.title and ep.title not in mapping:
+                        mapping[ep.title] = (
+                            feed.name,
+                            feed_title_str,
+                            ep.url,
+                            style,
+                            feed.instructions,
+                            feed.language,
+                        )
+            except Exception as exc:
+                logger.warning("[%s] Could not fetch feed %s for title mapping: %s", user.name, feed.name, exc)
+
+        logger.info("[%s] Built feed title map: %d episodes across %d feeds", user.name, len(mapping), len(feeds))
+        return mapping
+
     async def _scan_orphaned_notebooks(
         self, client, repo: JobRepository, user: User
     ) -> None:
@@ -106,6 +146,8 @@ class HarvesterService:
 
         known_ids = repo.get_known_notebook_ids(user)
         logger.info("User %s has %d known notebooks in database", user.name, len(known_ids))
+
+        feed_title_map = self._build_feed_title_map(user)
         imported = 0
 
         for nb in notebooks:
@@ -117,13 +159,11 @@ class HarvesterService:
                 if existing_job:
                     if existing_job.status in ("done", "deleted"):
                         continue
-                    # Not done — check if audio is now available
                     try:
                         audio_list = await client._client.artifacts.list_audio(nb.id)
                         if audio_list:
                             logger.info("Retrying download for failed notebook %s: %s (audio now available)", nb.id, nb.title)
                             is_retry = True
-                            # fall through to download
                         else:
                             logger.info("Skipping known notebook %s: %s (job %s status=%s, no audio)", nb.id, nb.title, existing_job.id, existing_job.status)
                             continue
@@ -148,67 +188,67 @@ class HarvesterService:
             logger.info("%s audio artifact %s for notebook %s: %s",
                        "Retrying" if is_retry else "Found",
                        artifact_id, nb.id, nb.title)
-            
-            feed_name = (existing_job.feed_name if (is_retry and existing_job) else None) or 'imported'
-            feed_title = (existing_job.feed_title if (is_retry and existing_job) else None) or self._settings.imported_feed_title
-            
+
+            if is_retry and existing_job:
+                feed_name = existing_job.feed_name
+                feed_title = existing_job.feed_title
+                episode_url = existing_job.episode_url
+            else:
+                feed_match = feed_title_map.get(nb.title or "")
+                if feed_match:
+                    feed_name, feed_title, episode_url, ep_style, ep_instructions, ep_language = feed_match
+                    logger.info("Matched notebook '%s' to feed '%s'", nb.title, feed_name)
+                else:
+                    feed_name = "imported"
+                    feed_title = self._settings.imported_feed_title
+                    episode_url = f"notebooklm://{nb.id}"
+                    ep_style = "deep-dive"
+                    ep_instructions = ""
+                    ep_language = "en"
+
             try:
                 logger.info("Starting download for notebook %s: %s", nb.id, nb.title)
-                path = await self._storage.download_and_remux(
-                    client, user, feed_name, artifact
-                )
+                path = await self._storage.download_and_remux(client, user, feed_name, artifact)
                 logger.info("Successfully downloaded notebook %s: %s to %s", nb.id, nb.title, path)
                 duration = self._storage.get_duration(path)
             except Exception as exc:
                 logger.error("Failed to download notebook %s: %s", nb.id, exc)
                 continue
 
-            imported_title = self._settings.imported_feed_title
-            episode = EpisodeModel(
-                url=f"notebooklm://{nb.id}",
-                title=nb.title or nb.id,
-                feed_name="imported",
-                feed_title=imported_title,
-                style="deep-dive",
-            )
             if is_retry and existing_job:
                 job_id = existing_job.id
             else:
+                episode = EpisodeModel(
+                    url=episode_url,
+                    title=nb.title or nb.id,
+                    feed_name=feed_name,
+                    feed_title=feed_title,
+                    style=ep_style,
+                    instructions=ep_instructions,
+                    language=ep_language,
+                )
                 job = repo.create_job(user, episode)
                 job_id = job.id
-            update = dict(
-                status="done",
-                notebook_id=nb.id,
-                artifact_id=artifact_id,
-                duration=duration,
-            )
+
+            update = dict(status="done", notebook_id=nb.id, artifact_id=artifact_id, duration=duration)
             if nb.created_at:
                 update["created_at"] = nb.created_at.isoformat()
             repo.update_job(user, job_id, **update)
 
-            logger.info("Imported orphaned notebook '%s' (%s)", nb.title, nb.id)
-            
-            # Send webhook notification
+            logger.info("Imported orphaned notebook '%s' → feed '%s' (%s)", nb.title, feed_name, nb.id)
+
             webhook = await self._get_webhook_client(user)
             if webhook:
                 try:
-                    logger.info("Sending webhook notification for imported notebook %s: %s", nb.id, nb.title)
-                    await webhook.notify_job_completed(
-                        user, job_id, feed_name, nb.title or nb.id
-                    )
-                    logger.info("Webhook notification sent successfully for notebook %s", nb.id)
+                    await webhook.notify_job_completed(user, job_id, feed_name, nb.title or nb.id)
                 except Exception as exc:
                     logger.error("Failed to send webhook for imported notebook %s: %s", nb.id, exc)
-            else:
-                logger.debug("No webhook client available for user %s", user.name)
-            
+
             imported += 1
             await self._feed_service.rebuild_feed(user, feed_name, feed_title)
 
         if imported:
-            logger.info(
-                "Imported %d orphaned notebook(s) for user %s", imported, user.name
-            )
+            logger.info("Imported %d orphaned notebook(s) for user %s", imported, user.name)
 
     async def _recover_job(self, client, repo: JobRepository, user: User, job) -> None:
         # Check if audio artifact exists on NotebookLM
