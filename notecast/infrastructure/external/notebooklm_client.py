@@ -24,6 +24,7 @@ class NotebookLMClientWrapper:
         self._timeout = timeout
         self._keepalive = keepalive
         self._client: Any = None
+        self._ctx: Any = None
         # notebook_id -> task_id from the most recent generate_audio call
         self._pending_tasks: dict[str, str] = {}
 
@@ -35,19 +36,18 @@ class NotebookLMClientWrapper:
         from notebooklm import NotebookLMClient
 
         path = str(self._auth_file) if self._auth_file else None
-        self._client = await NotebookLMClient.from_storage(path, timeout=30.0, keepalive=self._keepalive)
-        await self._client.__aenter__()
+        self._ctx = NotebookLMClient.from_storage(path, timeout=30.0, keepalive=self._keepalive)
+        self._client = await self._ctx.__aenter__()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
-        if self._client:
-            await self._client.__aexit__(exc_type, exc_val, exc_tb)
+        if self._ctx:
+            await self._ctx.__aexit__(exc_type, exc_val, exc_tb)
+            self._ctx = None
             self._client = None
 
     async def close(self) -> None:
-        if self._client:
-            await self._client.__aexit__(None, None, None)
-            self._client = None
+        await self.__aexit__(None, None, None)
 
     async def create_notebook(self, title: str) -> Any:
         """Create a notebook; returns object with .id."""
