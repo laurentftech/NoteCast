@@ -48,6 +48,12 @@ class JobService:
         transcript_path: Path | None = None
         try:
             async with await self._nb_client.session(user) as client:
+                if job.notebook_id:
+                    logger.info(
+                        "Job %s: deleting superseded notebook %s before retry",
+                        job.id, job.notebook_id,
+                    )
+                    await client.delete_notebook(job.notebook_id)
                 nb = await client.create_notebook(job.title)
                 nb_id = nb.id
                 repo.update_job(user, job.id, notebook_id=nb.id)

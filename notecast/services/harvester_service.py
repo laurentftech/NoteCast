@@ -206,6 +206,26 @@ class HarvesterService:
                     ep_instructions = ""
                     ep_language = "en"
 
+                source_urls: list[str] = []
+                try:
+                    srcs = await client._client.sources.list(nb.id)
+                    source_urls = [s.url for s in srcs if getattr(s, "url", None)]
+                except Exception as exc:
+                    logger.warning("Could not list sources for notebook %s: %s", nb.id, exc)
+
+                url_dupe = (
+                    (bool(feed_match) and repo.episode_seen(user, episode_url))
+                    or any(repo.episode_seen_by_any_url(user, u) for u in source_urls)
+                )
+                title_dupe = bool(nb.title) and repo.episode_seen_by_title(user, nb.title)
+                if url_dupe or title_dupe:
+                    logger.info(
+                        "Skipping duplicate orphan notebook '%s' (%s) — episode already tracked",
+                        nb.title, nb.id,
+                    )
+                    await client.delete_notebook(nb.id)
+                    continue
+
             try:
                 logger.info("Starting download for notebook %s: %s", nb.id, nb.title)
                 path = await self._storage.download_and_remux(client, user, feed_name, artifact)

@@ -82,3 +82,48 @@ def test_episode_seen_still_true_after_delete(repo):
     job = repo.create_job(user, ep)
     repo.update_job(user, job.id, status="deleted")
     assert repo.episode_seen(user, ep.url) is True
+
+
+def test_episode_seen_by_title_true_for_active_job(repo):
+    user = _make_user()
+    repo.create_job(user, _make_episode())
+    assert repo.episode_seen_by_title(user, "Test Episode") is True
+
+
+def test_episode_seen_by_title_false_when_only_deleted(repo):
+    user = _make_user()
+    job = repo.create_job(user, _make_episode())
+    repo.update_job(user, job.id, status="deleted")
+    assert repo.episode_seen_by_title(user, "Test Episode") is False
+
+
+def test_episode_seen_by_title_false_for_unknown_title(repo):
+    user = _make_user()
+    repo.create_job(user, _make_episode())
+    assert repo.episode_seen_by_title(user, "Other Title") is False
+
+
+def test_episode_seen_by_any_url_matches_episode_url(repo):
+    user = _make_user()
+    repo.create_job(user, _make_episode(url="https://youtu.be/abc"))
+    assert repo.episode_seen_by_any_url(user, "https://youtu.be/abc") is True
+
+
+def test_episode_seen_by_any_url_matches_source_url(repo):
+    user = _make_user()
+    ep = Episode(
+        url="https://cdn.example.com/ep.mp3",
+        source_url="https://example.com/article",
+        title="Src Episode",
+        feed_name="test-feed",
+        feed_title="Test Feed",
+        style="deep-dive",
+    )
+    repo.create_job(user, ep)
+    assert repo.episode_seen_by_any_url(user, "https://example.com/article") is True
+
+
+def test_episode_seen_by_any_url_false_for_unknown(repo):
+    user = _make_user()
+    repo.create_job(user, _make_episode())
+    assert repo.episode_seen_by_any_url(user, "https://nope.example/x") is False
