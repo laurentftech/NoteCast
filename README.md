@@ -1,6 +1,6 @@
 # NoteCast
 
-Turns your RSS feeds into AI-generated podcast episodes via NotebookLM, served over HTTPS.
+Turns your RSS feeds into AI-generated podcast episodes via NotebookLM.
 
 > **Disclaimer:** NoteCast uses [notebooklm-py](https://github.com/teng-lin/notebooklm-py), an **unofficial** reverse-engineered client for NotebookLM. It is not affiliated with or endorsed by Google. Use at your own risk — Google may change their API or ToS at any time.
 
@@ -35,19 +35,22 @@ NoteCast supports two modes:
 ### 1. Prerequisites
 
 - Docker + Docker Compose
-- A domain pointing to your server (for HTTPS)
 
 ### 2. Get the files
 
 ```bash
 curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/docker-compose.yml
-curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/Caddyfile
 curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/.env.example
 mkdir -p auth data public config
 curl -o config/transformer.yaml https://raw.githubusercontent.com/laurentftech/NoteCast/main/config/example/transformer.yaml
 ```
 
 The image (`ghcr.io/laurentftech/notecast:latest`) is pulled automatically. The web UI (`index.html`, `app.js`) is baked into the image — no separate file download needed.
+
+> **HTTPS / reverse proxy (optional):** NoteCast listens on port 8080 over plain HTTP. To expose it over HTTPS, place a reverse proxy in front — [Caddy](https://caddyserver.com), nginx, or Traefik all work. A `Caddyfile` is provided for convenience:
+> ```bash
+> curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/Caddyfile
+> ```
 
 > **Build from source:** clone the repo and add a `docker-compose.override.yml`:
 > ```yaml
@@ -66,8 +69,10 @@ cp .env.example .env
 Edit `.env`:
 
 ```env
-BASE_URL=https://podcast.yourdomain.com   # public URL of this server
-CADDY_DOMAIN=podcast.yourdomain.com       # same host, no protocol
+BASE_URL=http://your-server:8080   # public URL used in RSS episode links
+
+# Only needed when using Caddy as a reverse proxy for HTTPS:
+# CADDY_DOMAIN=podcast.yourdomain.com
 ```
 
 ### 4. Configure RSS feeds
@@ -131,10 +136,10 @@ curl -O https://raw.githubusercontent.com/laurentftech/NoteCast/main/scripts/ref
 chmod +x refresh-auth.sh
 
 # Single-user
-./refresh-auth.sh --url https://podcast.yourdomain.com
+./refresh-auth.sh --url http://your-server:8080
 
 # Multi-user (token shown in Admin panel → NotebookLM Session → Script token)
-./refresh-auth.sh --url https://podcast.yourdomain.com --token <your-feed-token>
+./refresh-auth.sh --url http://your-server:8080 --token <your-feed-token>
 ```
 
 > **Note:** Safari cookie extraction has a known bug in some rookiepy versions — use `--browser chrome` or `--browser firefox` if it fails.
@@ -247,8 +252,8 @@ Each user's private feed URLs appear in the **Feeds** section of the admin panel
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `BASE_URL` | yes | — | Public URL used in RSS episode links |
-| `CADDY_DOMAIN` | yes | — | Domain for Caddy auto-HTTPS |
+| `BASE_URL` | yes | — | Public URL used in RSS episode links (e.g. `http://your-server:8080` or `https://podcast.example.com`) |
+| `CADDY_DOMAIN` | no | — | Domain for Caddy auto-HTTPS; only needed when using the included `Caddyfile` |
 | `POLL_INTERVAL` | no | `86400` | Seconds between automatic feed polls |
 | `RETENTION_DAYS` | no | `14` | Days before episodes are deleted |
 | `BRIDGE_API_KEY` | no | *(none)* | Protects `/api/auth/upload` and `/api/poll` — requests must include `X-Api-Key: <value>` |
@@ -359,7 +364,7 @@ Renew credentials using the `refresh-auth.sh` script (see step 5), the **Admin p
 │       └── default/
 │           └── {feed-name}.xml   # RSS feeds
 ├── docker-compose.yml
-├── Caddyfile
+├── Caddyfile                         # optional — only needed for Caddy HTTPS
 └── .env
 ```
 
@@ -396,7 +401,7 @@ Renew credentials using the `refresh-auth.sh` script (see step 5), the **Admin p
 │       └── bob/
 │           └── {feed-name}.xml
 ├── docker-compose.yml
-├── Caddyfile
+├── Caddyfile                         # optional — only needed for Caddy HTTPS
 └── .env
 ```
 
@@ -443,7 +448,7 @@ Most likely cause: credentials missing or malformed. Follow step 5 above.
 - Verify the page origin is listed under **Authorised JavaScript origins** in Google Cloud Console
 - Check browser console for GIS script load errors
 
-**HTTPS not working**
+**HTTPS not working (Caddy)**
 - Verify `CADDY_DOMAIN` matches your DNS A record
 - Ports 80 and 443 must be open on your firewall
 - See [Caddy documentation](https://caddyserver.com) for details
