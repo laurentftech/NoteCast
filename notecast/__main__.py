@@ -18,6 +18,7 @@ from notecast.services.job_service import JobService
 from notecast.services.poller_service import PollerService
 from notecast.services.user_service import UserService
 from notecast.workers.harvester_worker import HarvesterWorker
+from notecast.workers.keepalive_worker import KeepaliveWorker
 from notecast.workers.poller_worker import PollerWorker
 from notecast.workers.transformer_worker import TransformerWorker
 
@@ -103,6 +104,11 @@ async def main():
         user_service=user_service,
     )
 
+    keepalive = KeepaliveWorker(
+        nb_client=nb_client,
+        user_service=user_service,
+    )
+
     poller = PollerWorker(
         poller_service=poller_service,
         user_service=user_service,
@@ -155,6 +161,7 @@ async def main():
         asyncio.create_task(transformer.run(), name="transformer"),
         asyncio.create_task(harvester.run(), name="harvester"),
         asyncio.create_task(poller.run(), name="poller"),
+        asyncio.create_task(keepalive.run(), name="keepalive"),
     ]
 
     await stop_event.wait()
