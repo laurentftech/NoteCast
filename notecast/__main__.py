@@ -76,9 +76,10 @@ async def main():
     )
 
     poller_service = PollerService(
-        repo_factory=repo_factory,  # Will be called with user
+        repo_factory=repo_factory,
         user_service=user_service,
         settings=settings,
+        webhook=webhook,
     )
 
     harvester_service = HarvesterService(

@@ -1,10 +1,9 @@
 """Status handler."""
-import json
 import logging
-import math
 import os
-import time
 from aiohttp import web
+
+from notecast.core.auth_utils import auth_expires_in_days
 
 logger = logging.getLogger(__name__)
 
@@ -60,21 +59,8 @@ async def handle_status(request: web.Request) -> web.Response:
         "version": os.environ.get("APP_VERSION", "dev"),
     }
 
-    expires = _auth_expires_in_days(user)
+    expires = auth_expires_in_days(user)
     if expires is not None:
         payload["token_expires_in_days"] = expires
 
     return web.json_response(payload)
-
-
-def _auth_expires_in_days(user) -> "int | None":
-    if not user.auth_file.exists():
-        return None
-    try:
-        data = json.loads(user.auth_file.read_bytes())
-        expiries = [c["expires"] for c in data.get("cookies", []) if c.get("expires", -1) > 0]
-        if not expiries:
-            return None
-        return math.floor((min(expiries) - time.time()) / 86400)
-    except Exception:
-        return None

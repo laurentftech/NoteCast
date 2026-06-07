@@ -110,6 +110,16 @@ class WebhookClient:
             message += f"\nEpisode: {episode_title}"
         await self.post(user, title=title, message=message)
 
+    async def notify_token_expiry(self, user: User, days: int) -> None:
+        """Warn that the NotebookLM auth token is about to expire."""
+        if days <= 0:
+            title = "NotebookLM token expired"
+            message = "NotebookLM token has expired — please renew credentials."
+        else:
+            title = f"NotebookLM token expires in {days}d"
+            message = f"NotebookLM token expires in {days} day(s) — please renew credentials."
+        await self.post(user, title=title, message=message)
+
     async def notify_job_failed(self, user: User, job_id: str, feed_name: str, error: str) -> None:
         """Notify that a job has failed.
         
