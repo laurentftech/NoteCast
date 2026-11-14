@@ -13,6 +13,17 @@ from notecast.api.http.handlers.auth import handle_auth
 from notecast.api.http.handlers.config import handle_config
 from notecast.api.http.handlers.episodes import handle_episodes
 from notecast.api.http.handlers.feeds import handle_feeds
+from notecast.api.http.handlers.gemini_notebook import (
+    create_gemini_notebook,
+    create_gemini_notebook_source,
+    exchange_gemini_notebook_code,
+    get_gemini_notebook_oauth_status,
+    get_gemini_notebook,
+    get_gemini_notebook_source,
+    list_gemini_notebook_sources,
+    list_gemini_notebooks,
+    rename_gemini_notebook,
+)
 from notecast.api.http.handlers.health import handle_health
 from notecast.api.http.handlers.poll import handle_poll
 from notecast.api.http.handlers.status import handle_status
@@ -81,6 +92,26 @@ def create_app(
     app.router.add_post("/api/webhook/test", handle_webhook_test)
     app.router.add_get("/api/transformer-config", handle_get_transformer_config)
     app.router.add_put("/api/transformer-config", handle_put_transformer_config)
+    app.router.add_get("/api/gemini-notebook/notebooks", list_gemini_notebooks)
+    app.router.add_get(
+        "/api/gemini-notebook/oauth/status", get_gemini_notebook_oauth_status
+    )
+    app.router.add_post("/api/gemini-notebook/oauth/exchange", exchange_gemini_notebook_code)
+    app.router.add_post("/api/gemini-notebook/notebooks", create_gemini_notebook)
+    app.router.add_get("/api/gemini-notebook/notebooks/{notebook_id}", get_gemini_notebook)
+    app.router.add_patch("/api/gemini-notebook/notebooks/{notebook_id}", rename_gemini_notebook)
+    app.router.add_get(
+        "/api/gemini-notebook/notebooks/{notebook_id}/sources",
+        list_gemini_notebook_sources,
+    )
+    app.router.add_post(
+        "/api/gemini-notebook/notebooks/{notebook_id}/sources",
+        create_gemini_notebook_source,
+    )
+    app.router.add_get(
+        "/api/gemini-notebook/notebooks/{notebook_id}/sources/{source_id}",
+        get_gemini_notebook_source,
+    )
 
     # Static files (index.html + audio episodes)
     static_path = Path(settings.public_dir)

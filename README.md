@@ -210,6 +210,12 @@ USER_BOB_EMAIL=bob@gmail.com
 
 # Google OAuth client ID (enables sign-in button in the web UI)
 GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-web-client-secret
+
+# Optional: use Gemini Notebook API for podcast notebooks and sources.
+# The unofficial audio adapter remains responsible for generating/downloading audio.
+GEMINI_NOTEBOOK_PIPELINE_ENABLED=false
+GEMINI_NOTEBOOK_PROJECT_ID=your-google-cloud-project-id
 
 # Optional: per-user webhooks
 # USER_ALICE_WEBHOOK_URL=https://ntfy.sh/alice-notecast
@@ -266,10 +272,25 @@ Each user's private feed URLs appear in the **Feeds** section of the admin panel
 | `WHISPER_MODEL` | no | `base` | faster-whisper model for non-YouTube transcription: `tiny` · `base` · `small` · `medium` · `large-v3` |
 | `USERS` | no | *(none)* | Comma-separated user nicknames; enables multi-user mode |
 | `GOOGLE_CLIENT_ID` | no | *(none)* | Google OAuth client ID; required when `USERS` is set |
+| `GOOGLE_CLIENT_SECRET` | no | *(none)* | Web OAuth client secret; required for background Gemini Notebook access |
+| `GEMINI_NOTEBOOK_PROJECT_ID` | no | *(none)* | Google Cloud project ID with `notebook.googleapis.com` enabled |
+| `GEMINI_NOTEBOOK_PIPELINE_ENABLED` | no | `false` | Create job notebooks and sources with the public API; keep audio generation on the legacy adapter |
 | `USER_{NAME}_EMAIL` | multi | — | Google email for each user (e.g. `USER_ALICE_EMAIL`) |
+| `USER_DEFAULT_EMAIL` | single | *(none)* | Google email for the default user; needed to connect Gemini Notebook API in single-user mode |
 | `USER_{NAME}_WEBHOOK_URL` | no | `WEBHOOK_URL` | Per-user webhook URL override |
 | `USER_{NAME}_WEBHOOK_HEADERS` | no | `WEBHOOK_HEADERS` | Per-user webhook headers override |
 | `USER_{NAME}_WEBHOOK_LINK` | no | `WEBHOOK_LINK` | Per-user webhook click URL override |
+
+### Gemini Notebook API public-preview pilot
+
+To enable the pilot in **Admin → Gemini Notebook API**, configure a Google Cloud project and OAuth Web client, then:
+
+1. Enable `notebook.googleapis.com` on that project.
+2. Add `https://www.googleapis.com/auth/notebook` to the OAuth consent screen's data-access scopes. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, and authorize the NoteCast origin as a JavaScript origin.
+3. If the OAuth app is in Testing mode, add the Google account as a test user.
+4. Sign in to Gemini Notebook once with a personal Google account, then connect that same account from NoteCast's admin panel. The connection saves a per-user refresh credential under the writable private data directory for worker use.
+
+The UI uses Google's authorization-code popup flow; the server exchanges the code and stores the refresh credential with file permissions restricted to the service user. Set `USER_DEFAULT_EMAIL` in single-user mode (or `USER_{NAME}_EMAIL` for each multi-user account), then connect that account in the admin panel. When `GEMINI_NOTEBOOK_PIPELINE_ENABLED=true`, connected users create notebooks and supported sources through Google's public API, verify that `notebooklm-py` can open the resulting notebook, and use the legacy adapter for audio generation and download. Users without a saved OAuth connection continue through the legacy pipeline; revoked or invalid saved credentials still fail visibly. If the identity check fails, the job stops before uploading a source. Set the flag back to `false` to roll back notebook creation and source ingestion to the legacy path. The public API still cannot delete notebooks, so a failed hybrid job can leave its notebook in Gemini Notebook for manual cleanup.
 
 ---
 

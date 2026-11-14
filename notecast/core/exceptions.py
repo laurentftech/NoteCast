@@ -5,6 +5,10 @@ class NotebookLMError(Exception):
     """Base exception for NotebookLM-related errors."""
 
 
+class GeminiNotebookApiError(NotebookLMError):
+    """Error returned by the public Gemini Notebook API."""
+
+
 class AuthError(Exception):
     """Authentication or authorization error."""
 

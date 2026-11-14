@@ -35,7 +35,11 @@ class Settings(BaseSettings):
     webhook_headers: Dict = {}
     webhook_link: str = ""
     users: str = ""                     # comma-separated names
+    user_default_email: str = ""
     google_client_id: str = ""
+    google_client_secret: str = ""
+    gemini_notebook_project_id: str = ""
+    gemini_notebook_pipeline_enabled: bool = False
     token_expiry_warn_days: int = 7
     feed_image_url: str = ""
     imported_feed_title: str = "NoteCast - Imported Notebooks"

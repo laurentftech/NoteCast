@@ -18,6 +18,7 @@ def _make_settings(**kwargs) -> Settings:
         webhook_url="",
         webhook_headers={},
         webhook_link="",
+        user_default_email="",
         google_client_id="",
     )
     defaults.update(kwargs)
@@ -30,6 +31,14 @@ async def test_single_user_mode_creates_default_user():
     users = await svc.get_all()
     assert len(users) == 1
     assert users[0].name == "default"
+
+
+@pytest.mark.asyncio
+async def test_single_user_mode_uses_configured_google_email():
+    users = await UserService(
+        _make_settings(user_default_email="laurent@example.com")
+    ).get_all()
+    assert users[0].email == "laurent@example.com"
 
 
 @pytest.mark.asyncio

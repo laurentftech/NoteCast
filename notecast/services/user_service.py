@@ -86,7 +86,7 @@ class UserService:
             )
             return [User(
                 name='default',
-                email='',
+                email=self._settings.user_default_email,
                 auth_file=_DEFAULT_AUTH_FILE,
                 db_file=self._settings.data_base / 'jobs.db',
                 history_file=self._settings.data_base / 'history.json',

@@ -1220,6 +1220,51 @@
       </div>
     </div>
 
+    <div style="margin-top:18px">
+      <div class="accordion-hdr" id="geminiNotebookAccordion">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="section-label">Gemini Notebook API</div>
+          <span style="font-size:11px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--text-3)">Public preview</span>
+        </div>
+        <span class="accordion-chev" id="geminiNotebookChev">▾</span>
+      </div>
+      <div class="accordion-body" id="geminiNotebookBody" style="display:none;">
+        <p style="font-size:12px;color:var(--text-3);line-height:1.5;margin:0 0 12px;">
+          Connect a personal Google account to manage notebooks and sources through Google's API. Podcast jobs use that API for notebooks and sources, then the existing audio adapter for generation.
+        </p>
+        <button class="btn btn-accent" id="geminiNotebookConnectBtn" style="width:100%;justify-content:center;padding:10px">
+          Connect Google account
+        </button>
+        <div id="geminiNotebookConnectionStatus" role="status" style="font-size:12px;color:var(--text-3);margin-top:8px;">
+          Checking Google connection…
+        </div>
+        <div id="geminiNotebookTools" style="display:none;margin-top:14px;">
+          <div id="geminiNotebookAccount" style="font-size:12px;color:var(--text-3);margin-bottom:10px;"></div>
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <input id="geminiNotebookTitle" type="text" maxlength="500" placeholder="Notebook title"
+                   style="flex:1;min-width:0;padding:9px 10px;border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-family:inherit;">
+            <button class="btn btn-accent" id="geminiNotebookCreateBtn">Create</button>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <select id="geminiNotebookSelect" style="flex:1;min-width:0;padding:9px 10px;border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-family:inherit;"></select>
+            <button class="btn" id="geminiNotebookReloadBtn">Reload</button>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <input id="geminiNotebookRename" type="text" maxlength="500" placeholder="New notebook name"
+                   style="flex:1;min-width:0;padding:9px 10px;border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-family:inherit;">
+            <button class="btn" id="geminiNotebookRenameBtn">Rename</button>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <input id="geminiNotebookUrl" type="url" placeholder="Public web or YouTube URL"
+                   style="flex:1;min-width:0;padding:9px 10px;border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-family:inherit;">
+            <button class="btn" id="geminiNotebookAddSourceBtn">Add source</button>
+          </div>
+          <div id="geminiNotebookSources" style="font-size:12px;color:var(--text-3);margin-top:10px;white-space:pre-wrap;"></div>
+        </div>
+        <div class="upload-result" id="geminiNotebookResult" style="display:none;"></div>
+      </div>
+    </div>
+
     <div style="margin-top:22px; padding-top:18px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:8px;">
       <a href="https://github.com/laurentftech/NoteCast" target="_blank" rel="noopener"
          class="btn" style="width:100%;justify-content:center;gap:8px;">

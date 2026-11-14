@@ -417,6 +417,12 @@ The system SHALL serve static content for episodes and feeds from dedicated path
 
 > Decision recorded: 407525ab
 > Date: 2026-05-17
+### Requirement: CheckTokenExpiryInPollerserviceAndNotifyViaWebhook
+
+The system SHALL notify users via webhook when their authentication token is about to expire.
+
+> Decision recorded: 134ee6f8
+> Date: 2026-06-07
 
 ## Decisions
 
@@ -449,3 +455,13 @@ To support client-side JavaScript functionality, the server needs to serve the a
 To better organize and serve static content for different sections of the application, specifically for episodes and feed-related resources.
 
 **Consequences:** The static content for episodes and feeds will now be served from dedicated paths (/episodes and /feed), which may require updates to any references or links to these resources in the application.
+
+### Check token expiry in PollerService and notify via webhook
+
+**Status:** Approved
+**Date:** 2026-06-07
+**ID:** 134ee6f8
+
+Token expiry was documented in README and UI but never actually triggered a webhook notification. PollerService runs every 24h per user, making it the natural place to check expiry and send warnings without adding a dedicated worker.
+
+**Consequences:** auth_expires_in_days extracted to notecast/core/auth_utils.py (shared by status handler and poller). PollerService gains optional webhook param and _check_token_expiry method, rate-limited to once per 24h per user via in-memory dict. notify_token_expiry added to WebhookClient.
