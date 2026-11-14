@@ -10,6 +10,7 @@ from notecast.api.http.server import create_app
 from notecast.infrastructure.config.settings import Settings
 from notecast.infrastructure.database.sqlite_repository import SQLiteJobRepository
 from notecast.infrastructure.external.notebooklm_client import NotebookLMClientWrapper
+from notecast.infrastructure.external.gemini_notebook_credentials import GeminiNotebookCredentialStore
 from notecast.infrastructure.external.webhook_client import WebhookClient
 from notecast.infrastructure.storage.file_storage import LocalFileStorage
 from notecast.services.feed_service import FeedService
@@ -74,6 +75,13 @@ async def main():
         nb_client=nb_client,
         feed_service=feed_service,
         whisper_model=settings.whisper_model,
+        gemini_credentials=GeminiNotebookCredentialStore(
+            settings.data_base / "gemini_notebook_oauth",
+            settings.google_client_id,
+            settings.google_client_secret,
+        ),
+        gemini_project_id=settings.gemini_notebook_project_id,
+        gemini_pipeline_enabled=settings.gemini_notebook_pipeline_enabled,
     )
 
     poller_service = PollerService(

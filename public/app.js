@@ -4,6 +4,9 @@
 
   // ── Auth ──────────────────────────────────────────
   let _googleToken = null;
+  let _appConfig = {};
+  let _geminiNotebookToken = null;
+  let _geminiNotebookTokenExpiresAt = 0;
 
   function authHeaders() {
     return _googleToken ? { 'Authorization': `Bearer ${_googleToken}` } : {};
@@ -18,6 +21,27 @@
       throw new Error('Unauthorized');
     }
     return res;
+  }
+
+  async function geminiNotebookFetch(url, opts = {}) {
+    if (!_geminiNotebookToken || Date.now() >= _geminiNotebookTokenExpiresAt - 30000) {
+      throw new Error('Notebook authorization expired. Connect the Google account again.');
+    }
+    const headers = {
+      ...authHeaders(),
+      ...(opts.headers || {}),
+      'X-Gemini-Notebook-Access-Token': _geminiNotebookToken,
+    };
+    const res = await fetch(url, { ...opts, headers });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (res.status === 401) {
+        _geminiNotebookToken = null;
+        _geminiNotebookTokenExpiresAt = 0;
+      }
+      throw new Error(body.error || `Request failed (${res.status})`);
+    }
+    return body;
   }
 
   function showSignIn() {
@@ -40,6 +64,8 @@
 
   document.getElementById('signOutBtn').addEventListener('click', () => {
     _googleToken = null;
+    _geminiNotebookToken = null;
+    _geminiNotebookTokenExpiresAt = 0;
     localStorage.removeItem('gToken');
     showSignIn();
     if (typeof google !== 'undefined') {
@@ -58,11 +84,35 @@
 
   async function initAuth() {
     const cfg = await fetch('/api/config').then(r => r.json()).catch(() => ({}));
+    _appConfig = cfg;
+    document.getElementById('geminiNotebookAccordion').parentElement.style.display =
+      cfg.gemini_notebook_enabled ? '' : 'none';
     if (!cfg.google_client_id) {
       showApp();
       loadEpisodes();
       return;
     }
+    await new Promise((resolve, reject) => {
+      if (window.google?.accounts?.id) return resolve();
+      const s = document.createElement('script');
+      s.src = 'https://accounts.google.com/gsi/client';
+      s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
+    window._handleGoogleToken = (response) => {
+      _googleToken = response.credential;
+      localStorage.setItem('gToken', _googleToken);
+      try {
+        const payload = _decodeJwtPayload(_googleToken);
+        showApp(payload.email);
+      } catch { showApp(); }
+      loadEpisodes();
+    };
+    google.accounts.id.initialize({
+      client_id: cfg.google_client_id,
+      callback: window._handleGoogleToken,
+      auto_select: true,
+    });
     // Restore cached token if still valid (exp > now + 60s)
     const cached = localStorage.getItem('gToken');
     if (cached) {
@@ -79,28 +129,7 @@
     }
     // Multi-user: hide app until signed in
     showSignIn();
-    // Load GIS dynamically
-    await new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = 'https://accounts.google.com/gsi/client';
-      s.onload = resolve; s.onerror = reject;
-      document.head.appendChild(s);
-    });
-    window._handleGoogleToken = (response) => {
-      _googleToken = response.credential;
-      localStorage.setItem('gToken', _googleToken);
-      try {
-        const payload = _decodeJwtPayload(_googleToken);
-        showApp(payload.email);
-      } catch { showApp(); }
-      loadEpisodes();
-    };
     // Render GIS button
-    google.accounts.id.initialize({
-      client_id: cfg.google_client_id,
-      callback: window._handleGoogleToken,
-      auto_select: true,
-    });
     google.accounts.id.renderButton(
       document.getElementById('gisButton'),
       { theme: 'filled_black', size: 'large', text: 'signin_with' }
@@ -397,6 +426,7 @@
     document.body.style.overflow = 'hidden';
     loadStatus();
     loadFeedCfg();
+    loadGeminiNotebookConnectionStatus();
   }
   function closeAdmin() {
     overlay.classList.remove('open');
@@ -426,6 +456,190 @@
   }
   makeAccordion('feedsAccordion', 'feedsBody', 'feedsChev');
   makeAccordion('sessionAccordion', 'sessionBody', 'sessionChev');
+  makeAccordion('geminiNotebookAccordion', 'geminiNotebookBody', 'geminiNotebookChev');
+
+  const geminiNotebookResult = document.getElementById('geminiNotebookResult');
+  function showGeminiNotebookResult(message, ok = false) {
+    geminiNotebookResult.textContent = message;
+    geminiNotebookResult.className = `upload-result ${ok ? 'ok' : 'err'}`;
+    geminiNotebookResult.style.display = 'block';
+  }
+
+  function renderGeminiNotebookConnectionStatus(connected, email = '') {
+    const status = document.getElementById('geminiNotebookConnectionStatus');
+    const button = document.getElementById('geminiNotebookConnectBtn');
+    status.textContent = connected
+      ? `✓ Background access connected for ${email}.`
+      : 'Not connected. Connect a Google account to enable hybrid jobs for this user.';
+    status.style.color = connected ? '#16a34a' : 'var(--text-3)';
+    button.textContent = connected ? 'Reconnect Google account' : 'Connect Google account';
+  }
+
+  async function loadGeminiNotebookConnectionStatus() {
+    const status = document.getElementById('geminiNotebookConnectionStatus');
+    try {
+      const response = await authFetch('/api/gemini-notebook/oauth/status');
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || `Request failed (${response.status})`);
+      renderGeminiNotebookConnectionStatus(Boolean(result.connected), result.email || '');
+    } catch {
+      status.textContent = 'Unable to check Google connection status.';
+      status.style.color = '#dc2626';
+    }
+  }
+
+  function selectedGeminiNotebookName() {
+    const name = document.getElementById('geminiNotebookSelect').value;
+    if (!name) throw new Error('Create or select a notebook first.');
+    return name;
+  }
+
+  async function reloadGeminiNotebooks(selectName = '') {
+    const notebooks = await geminiNotebookFetch('/api/gemini-notebook/notebooks');
+    const select = document.getElementById('geminiNotebookSelect');
+    select.replaceChildren(new Option(notebooks.length ? 'Select a notebook' : 'No notebooks yet', ''));
+    for (const notebook of notebooks) {
+      select.add(new Option(notebook.displayName || notebook.name, notebook.name));
+    }
+    if (selectName) select.value = selectName;
+    else if (notebooks.length) select.selectedIndex = 1;
+    if (select.value) await loadGeminiNotebookSources();
+    else document.getElementById('geminiNotebookSources').textContent = '';
+    return notebooks;
+  }
+
+  async function loadGeminiNotebookSources() {
+    const name = selectedGeminiNotebookName();
+    const notebookId = name.split('/')[1];
+    const result = await geminiNotebookFetch(
+      `/api/gemini-notebook/notebooks/${encodeURIComponent(notebookId)}/sources`
+    );
+    const sources = result.sources || [];
+    document.getElementById('geminiNotebookSources').textContent = sources.length
+      ? sources.map(source => `${source.displayName || source.originalUrl || source.name} · ${source.state || 'ready'}`).join('\n')
+      : 'No sources in this notebook.';
+  }
+
+  document.getElementById('geminiNotebookConnectBtn').addEventListener('click', () => {
+    if (!_appConfig.gemini_notebook_background_auth_enabled) {
+      showGeminiNotebookResult('Configure GOOGLE_CLIENT_SECRET on the server to enable background Notebook access.');
+      return;
+    }
+    if (!window.google?.accounts?.oauth2 || !_appConfig.google_client_id) {
+      showGeminiNotebookResult('Google OAuth is not available in this browser.');
+      return;
+    }
+    const connectButton = document.getElementById('geminiNotebookConnectBtn');
+    connectButton.disabled = true;
+    const codeClient = google.accounts.oauth2.initCodeClient({
+      client_id: _appConfig.google_client_id,
+      scope: 'openid email https://www.googleapis.com/auth/notebook',
+      ux_mode: 'popup',
+      select_account: true,
+      callback: async response => {
+        if (response.error || !response.code) {
+          connectButton.disabled = false;
+          showGeminiNotebookResult(response.error_description || response.error || 'Google authorization failed.');
+          return;
+        }
+        try {
+          const exchange = await authFetch('/api/gemini-notebook/oauth/exchange', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Requested-With': 'XmlHttpRequest',
+            },
+            body: JSON.stringify({ code: response.code, scope: response.scope || '' }),
+          });
+          const token = await exchange.json();
+          if (!exchange.ok) throw new Error(token.error || `OAuth exchange failed (${exchange.status})`);
+          _geminiNotebookToken = token.access_token;
+          _geminiNotebookTokenExpiresAt = Date.now() + Number(token.expires_in || 3600) * 1000;
+          document.getElementById('geminiNotebookTools').style.display = 'block';
+          document.getElementById('geminiNotebookAccount').textContent =
+            `Background access connected for ${token.email}.`;
+          renderGeminiNotebookConnectionStatus(true, token.email);
+          await reloadGeminiNotebooks();
+          showGeminiNotebookResult('✓ Connected. NoteCast can now use the authorized account for background jobs.', true);
+        } catch (error) {
+          _geminiNotebookToken = null;
+          _geminiNotebookTokenExpiresAt = 0;
+          document.getElementById('geminiNotebookTools').style.display = 'none';
+          showGeminiNotebookResult(error.message);
+        } finally {
+          connectButton.disabled = false;
+        }
+      },
+      error_callback: error => {
+        connectButton.disabled = false;
+        showGeminiNotebookResult(error.message || 'Google authorization was cancelled.');
+      },
+    });
+    codeClient.requestCode();
+  });
+
+  document.getElementById('geminiNotebookCreateBtn').addEventListener('click', async () => {
+    const button = document.getElementById('geminiNotebookCreateBtn');
+    const displayName = document.getElementById('geminiNotebookTitle').value.trim();
+    if (!displayName) return showGeminiNotebookResult('Enter a notebook title.');
+    button.disabled = true;
+    try {
+      const notebook = await geminiNotebookFetch('/api/gemini-notebook/notebooks', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ display_name: displayName }),
+      });
+      document.getElementById('geminiNotebookTitle').value = '';
+      await reloadGeminiNotebooks(notebook.name);
+      showGeminiNotebookResult(`✓ Created ${notebook.displayName || displayName}`, true);
+    } catch (error) { showGeminiNotebookResult(error.message); }
+    finally { button.disabled = false; }
+  });
+
+  document.getElementById('geminiNotebookReloadBtn').addEventListener('click', async () => {
+    try {
+      await reloadGeminiNotebooks();
+      showGeminiNotebookResult('Notebook list refreshed.', true);
+    } catch (error) { showGeminiNotebookResult(error.message); }
+  });
+
+  document.getElementById('geminiNotebookSelect').addEventListener('change', async () => {
+    try { await loadGeminiNotebookSources(); }
+    catch (error) { showGeminiNotebookResult(error.message); }
+  });
+
+  document.getElementById('geminiNotebookRenameBtn').addEventListener('click', async () => {
+    const displayName = document.getElementById('geminiNotebookRename').value.trim();
+    if (!displayName) return showGeminiNotebookResult('Enter the new notebook name.');
+    try {
+      const name = selectedGeminiNotebookName();
+      const notebookId = name.split('/')[1];
+      await geminiNotebookFetch(`/api/gemini-notebook/notebooks/${encodeURIComponent(notebookId)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ display_name: displayName }),
+      });
+      document.getElementById('geminiNotebookRename').value = '';
+      await reloadGeminiNotebooks(name);
+      showGeminiNotebookResult('✓ Notebook renamed.', true);
+    } catch (error) { showGeminiNotebookResult(error.message); }
+  });
+
+  document.getElementById('geminiNotebookAddSourceBtn').addEventListener('click', async () => {
+    const url = document.getElementById('geminiNotebookUrl').value.trim();
+    if (!url) return showGeminiNotebookResult('Enter a public web or YouTube URL.');
+    try {
+      const name = selectedGeminiNotebookName();
+      const notebookId = name.split('/')[1];
+      const source = await geminiNotebookFetch(
+        `/api/gemini-notebook/notebooks/${encodeURIComponent(notebookId)}/sources`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        }
+      );
+      document.getElementById('geminiNotebookUrl').value = '';
+      await loadGeminiNotebookSources();
+      showGeminiNotebookResult(`✓ Source indexed: ${source.displayName || source.originalUrl || source.name}`, true);
+    } catch (error) { showGeminiNotebookResult(error.message); }
+  });
 
   document.getElementById('renewCredsToggle').addEventListener('click', () => {
     const body = document.getElementById('renewCredsBody');

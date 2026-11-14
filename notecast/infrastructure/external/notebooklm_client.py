@@ -56,6 +56,15 @@ class NotebookLMClientWrapper:
         except Exception as exc:
             raise NotebookLMError(f"Failed to create notebook: {exc}") from exc
 
+    async def get_notebook(self, notebook_id: str) -> Any:
+        """Verify that the legacy audio client can open a notebook by ID."""
+        try:
+            return await self._client.notebooks.get(notebook_id)
+        except Exception as exc:
+            raise NotebookLMError(
+                f"Legacy NotebookLM client cannot access notebook {notebook_id}: {exc}"
+            ) from exc
+
     async def add_source(self, notebook_id: str, url: str) -> None:
         """Add a URL source to a notebook (waits for indexing)."""
         try:

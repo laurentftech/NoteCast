@@ -1,6 +1,6 @@
 podgen>=1.0.0
 requests>=2.31.0
-notebooklm-py>=0.3.4
+notebooklm-py[cookies]>=0.8.6,<0.9.0
 playwright>=1.40.0
 aiohttp>=3.14.0
 feedparser>=6.0.0
